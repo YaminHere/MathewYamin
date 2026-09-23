@@ -1,0 +1,51 @@
+{
+  "id": "cutilase",
+  "title": "Cutilase",
+  "year": 2024,
+  "classifications": [
+    "web",
+    "campaigns"
+  ],
+  "position": {
+    "x": 1060.5980928675442,
+    "y": 296.5736499582697
+  },
+  "frames": [
+    {
+      "id": "identity",
+      "title": "Identity",
+      "type": "image",
+      "src": "/work/cutilase/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "width": 600,
+      "height": 337.5
+    },
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/cutilase/campaign.jpg",
+      "position": {
+        "x": 47.798516528528815,
+        "y": 414.156919513055
+      },
+      "width": 594.3195129777005,
+      "height": 742.8993912221256
+    },
+    {
+      "id": "packaging",
+      "title": "Web",
+      "type": "image",
+      "src": "/work/cutilase/packaging.jpg",
+      "position": {
+        "x": 659.4425366926441,
+        "y": 32.28062297087479
+      },
+      "width": 635.9402173425996,
+      "height": 1130.1763645164676
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "wakefit",
+  "title": "Wakefit",
+  "year": 2024,
+  "classifications": [
+    "product",
+    "web"
+  ],
+  "position": {
+    "x": 4193.518620927137,
+    "y": 915.1741808194239
+  },
+  "frames": [
+    {
+      "id": "pdp",
+      "title": "PDP Audit",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "ux",
+      "title": "UX Direction",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 600,
+        "y": 70
+      }
+    },
+    {
+      "id": "interface",
+      "title": "Interface",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 220,
+        "y": 620
+      }
+    }
+  ]
+}

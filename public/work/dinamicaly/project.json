@@ -1,0 +1,45 @@
+{
+  "id": "dinamicaly",
+  "title": "dinamicaly",
+  "year": 2026,
+  "classifications": [
+    "brand",
+    "web"
+  ],
+  "position": {
+    "x": -1800,
+    "y": -900
+  },
+  "frames": [
+    {
+      "id": "identity",
+      "title": "Identity",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "website",
+      "title": "Website",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 560,
+        "y": 70
+      }
+    },
+    {
+      "id": "system",
+      "title": "Design System",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 220,
+        "y": 450
+      }
+    }
+  ]
+}

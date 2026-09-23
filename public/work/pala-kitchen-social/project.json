@@ -1,0 +1,45 @@
+{
+  "id": "pala-kitchen-social",
+  "title": "Pala Kitchen Social",
+  "year": 2025,
+  "classifications": [
+    "campaigns",
+    "visual"
+  ],
+  "position": {
+    "x": -2100,
+    "y": 1450
+  },
+  "frames": [
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "social",
+      "title": "Social",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 560,
+        "y": 70
+      }
+    },
+    {
+      "id": "visual",
+      "title": "Visual System",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 180,
+        "y": 560
+      }
+    }
+  ]
+}

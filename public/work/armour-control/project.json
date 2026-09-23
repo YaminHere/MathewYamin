@@ -1,0 +1,45 @@
+{
+  "id": "armour-control",
+  "title": "Armour Control",
+  "year": 2025,
+  "classifications": [
+    "product",
+    "web"
+  ],
+  "position": {
+    "x": 3749.862625152929,
+    "y": -1157.111620218468
+  },
+  "frames": [
+    {
+      "id": "product",
+      "title": "Product",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "interface",
+      "title": "Interface",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 620,
+        "y": 90
+      }
+    },
+    {
+      "id": "website",
+      "title": "Website",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 180,
+        "y": 480
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "media-grid",
+  "title": "Media Grid",
+  "year": 2026,
+  "classifications": [
+    "brand",
+    "illustration"
+  ],
+  "position": {
+    "x": 5056.0680364629025,
+    "y": 2318.4233385017274
+  },
+  "frames": [
+    {
+      "id": "identity",
+      "title": "Identity",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "illustration",
+      "title": "Illustration",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 540,
+        "y": 80
+      }
+    },
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 180,
+        "y": 550
+      }
+    }
+  ]
+}

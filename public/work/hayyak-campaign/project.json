@@ -1,0 +1,45 @@
+{
+  "id": "hayyak-campaign",
+  "title": "Hayyak Campaign",
+  "year": 2025,
+  "classifications": [
+    "campaigns",
+    "visual"
+  ],
+  "position": {
+    "x": 3815.421867529858,
+    "y": 2112.0785023165913
+  },
+  "frames": [
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "social",
+      "title": "Social",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 620,
+        "y": 70
+      }
+    },
+    {
+      "id": "art-direction",
+      "title": "Art Direction",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 200,
+        "y": 560
+      }
+    }
+  ]
+}

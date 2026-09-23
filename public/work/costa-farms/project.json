@@ -1,0 +1,45 @@
+{
+  "id": "costa-farms",
+  "title": "Costa Farms",
+  "year": 2024,
+  "classifications": [
+    "product",
+    "web"
+  ],
+  "position": {
+    "x": -2300,
+    "y": 250
+  },
+  "frames": [
+    {
+      "id": "ux-audit",
+      "title": "UX Audit",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "flow",
+      "title": "User Flow",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 520,
+        "y": 80
+      }
+    },
+    {
+      "id": "interface",
+      "title": "Interface",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 180,
+        "y": 620
+      }
+    }
+  ]
+}

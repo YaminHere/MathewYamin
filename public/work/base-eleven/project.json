@@ -1,0 +1,51 @@
+{
+  "id": "base-eleven",
+  "title": "Base Eleven",
+  "year": 2025,
+  "classifications": [
+    "product",
+    "visual"
+  ],
+  "position": {
+    "x": 828.1288991280072,
+    "y": -702.7112600016469
+  },
+  "frames": [
+    {
+      "id": "identity",
+      "title": "Identity",
+      "type": "image",
+      "src": "/work/base-eleven/identity.jpg",
+      "position": {
+        "x": 37.21855853737159,
+        "y": 20.529909761601147
+      },
+      "width": 600,
+      "height": 337.5
+    },
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/base-eleven/campaign.jpg",
+      "position": {
+        "x": 39.671437934998494,
+        "y": 381.78639869518224
+      },
+      "width": 400,
+      "height": 500
+    },
+    {
+      "id": "packaging",
+      "title": "Visual",
+      "type": "image",
+      "src": "/work/base-eleven/packaging.jpg",
+      "position": {
+        "x": 460.9255877254692,
+        "y": 386.88765732925964
+      },
+      "width": 178.43223163198434,
+      "height": 317.10510730249393
+    }
+  ]
+}

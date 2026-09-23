@@ -1,0 +1,45 @@
+{
+  "id": "rang",
+  "title": "Rang",
+  "year": 2022,
+  "classifications": [
+    "illustration",
+    "campaigns"
+  ],
+  "position": {
+    "x": -1024.3314283877085,
+    "y": 2462.0704077643463
+  },
+  "frames": [
+    {
+      "id": "poster",
+      "title": "Poster",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "illustration",
+      "title": "Illustration",
+      "type": "image",
+      "src": "/work/procan-eats/packaging.jpg",
+      "position": {
+        "x": 540,
+        "y": 80
+      }
+    },
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/procan-eats/identity.jpg",
+      "position": {
+        "x": 180,
+        "y": 660
+      }
+    }
+  ]
+}

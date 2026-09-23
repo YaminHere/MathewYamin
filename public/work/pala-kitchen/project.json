@@ -1,0 +1,51 @@
+{
+  "id": "pala-kitchen",
+  "title": "Pala Kitchen",
+  "year": 2025,
+  "classifications": [
+    "brand",
+    "illustration"
+  ],
+  "position": {
+    "x": 1545.0919463969408,
+    "y": -649.231194816516
+  },
+  "frames": [
+    {
+      "id": "identity",
+      "title": "Identity",
+      "type": "image",
+      "src": "/work/pala-kitchen/identity.jpg",
+      "position": {
+        "x": 41.23345863836885,
+        "y": 461.84285432212926
+      },
+      "width": 648.1048868963832,
+      "height": 364.55899887921555
+    },
+    {
+      "id": "campaign",
+      "title": "Campaign",
+      "type": "image",
+      "src": "/work/pala-kitchen/campaign.jpg",
+      "position": {
+        "x": 342.1172942887936,
+        "y": 20.793985358297647
+      },
+      "width": 343.2609026350352,
+      "height": 429.076128293794
+    },
+    {
+      "id": "packaging",
+      "title": "Illustration",
+      "type": "image",
+      "src": "/work/pala-kitchen/packaging.jpg",
+      "position": {
+        "x": 51.72030160964491,
+        "y": 19.258273423189962
+      },
+      "width": 238.31407906265667,
+      "height": 423.52556442113445
+    }
+  ]
+}
