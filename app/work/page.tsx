@@ -740,6 +740,12 @@ console.log(
 }
 };
 
+const saveAllProjects = async () => {
+  for (const project of projects) {
+    await saveProject(project.id);
+  }
+};
+
   // --------------------------------------------------
   // LOAD PROJECTS
   // --------------------------------------------------
@@ -2665,6 +2671,13 @@ useEffect(() => {
             ALL WORK
           </button>
 
+          <button
+  onClick={saveAllProjects}
+  className="transition-opacity hover:opacity-50"
+>
+  SAVE
+</button>
+
           {sections.map(
             (section) => (
               <button
@@ -2845,19 +2858,7 @@ useEffect(() => {
   </div>
 
   <div className="flex items-center gap-1">
-    <button
-      type="button"
-      onPointerDown={(e) =>
-        e.stopPropagation()
-      }
-      onClick={(e) => {
-        e.stopPropagation();
-        saveProject(project.id);
-      }}
-      className="rounded-full border border-black/10 bg-white/80 px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] text-black/50 transition-colors hover:bg-black hover:text-white"
-    >
-      Save
-    </button>
+    
 
     <button
       type="button"
