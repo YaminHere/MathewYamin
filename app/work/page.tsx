@@ -645,8 +645,16 @@ const framePositionsRef =
 
   const frameLabelRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
+  const projectHeaderRefs =
+  useRef<Record<string, HTMLDivElement | null>>({});
+  const projectElementRefs =
+  useRef<Record<string, HTMLDivElement | null>>({});
+  const projectBoundaryRefs =
+  useRef<Record<string, HTMLDivElement | null>>({});
   const frameElementRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
+  
+  
 
   const projectZIndexesRef =
   useRef<Record<string, number>>({});
@@ -1445,6 +1453,37 @@ useEffect(() => {
     camera.current.scale;
 
   projectsRef.current.forEach((project) => {
+
+    const header =
+  projectHeaderRefs.current[project.id];
+
+const boundary =
+  projectBoundaryRefs.current[project.id];
+
+if (header && boundary) {
+  const boundaryRect =
+    boundary.getBoundingClientRect();
+
+  const viewportRect =
+    viewport.getBoundingClientRect();
+
+  const gap =
+    8 * cameraScale;
+
+  const x =
+    boundaryRect.left -
+    viewportRect.left;
+
+  const y =
+    boundaryRect.top -
+    viewportRect.top -
+    gap -
+    header.offsetHeight;
+
+  header.style.transform =
+    `translate3d(${x}px, ${y}px, 0)`;
+}
+    
     project.frames.forEach((frame) => {
       const frameKey =
         `${project.id}:${frame.id}`;
@@ -3044,9 +3083,12 @@ const handleProjectResizePointerUp = (
 
               return (
                 <div
-                  key={
-                    project.id
-                  }
+    key={project.id}
+    ref={(element) => {
+      projectElementRefs.current[project.id] =
+        element;
+    }}
+
                   className="absolute cursor-grab active:cursor-grabbing"
                   style={{
   left: position.x,
@@ -3082,58 +3124,17 @@ onPointerLeave={() => {
 }}
                 >
 
-                  {/* PROJECT HEADER */}
-
-                  <div className="mb-4 flex items-center justify-between gap-4">
-  <div className="flex items-center gap-2">
-    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-black/70 dark:text-white/70">
-      {project.title}
-    </span>
-
-    <span className="text-[9px] text-black/30 dark:text-white/30">
-      {project.year}
-    </span>
-
-    {project.classifications.map(
-      (classification) => (
-        <span
-          key={classification}
-          className="text-[8px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30"
-        >
-          {classification}
-        </span>
-      )
-    )}
-  </div>
-
-  <div className="flex items-center gap-1">
-    
-
-    <button
-      type="button"
-      onPointerDown={(e) =>
-        e.stopPropagation()
-      }
-      onClick={(e) => {
-        e.stopPropagation();
-        toggleProjectLock(project.id);
-      }}
-      className={`rounded-full border px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] transition-colors ${
-  unlockedProjects[project.id]
-    ? "border-red-500 bg-red-500 text-white hover:bg-red-600"
-    : "border-black/10 bg-white/80 text-black/50 hover:border-red-500 hover:bg-red-500 hover:text-white dark:border-white/10 dark:bg-zinc-900/80 dark:text-white/50 dark:hover:border-red-500 dark:hover:bg-red-500 dark:hover:text-white"
-  }`}
-    >
-      {unlockedProjects[project.id]
-        ? "Lock"
-        : "Edit"}
-    </button>
-  </div>
-</div>
+              
 
                   {/* PROJECT BOUNDARY */}
 
                   <div
+
+ref={(element) => {
+  projectBoundaryRefs.current[project.id] =
+    element;
+}}
+
                     className={`relative rounded-[2rem] border transition-colors ${
   unlockedProjects[project.id]
     ? "border-red-500"
@@ -3324,6 +3325,64 @@ onPointerLeave={() => {
   ref={screenLabelLayerRef}
   className="pointer-events-none absolute inset-0 z-40"
 >
+
+  {/* PROJECT HEADERS */}
+{projects.map((project) => (
+  <div
+    key={`header:${project.id}`}
+    ref={(element) => {
+      projectHeaderRefs.current[project.id] =
+        element;
+    }}
+    className="pointer-events-auto absolute left-0 top-0"
+  >
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-black/70 dark:text-white/70">
+          {project.title}
+        </span>
+
+        <span className="text-[9px] text-black/30 dark:text-white/30">
+          {project.year}
+        </span>
+
+        {project.classifications.map(
+          (classification) => (
+            <span
+              key={classification}
+              className="text-[8px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30"
+            >
+              {classification}
+            </span>
+          )
+        )}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onPointerDown={(e) =>
+            e.stopPropagation()
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleProjectLock(project.id);
+          }}
+          className={`rounded-full border px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] transition-colors ${
+            unlockedProjects[project.id]
+              ? "border-red-500 bg-red-500 text-white hover:bg-red-600"
+              : "border-black/10 bg-white/80 text-black/50 hover:border-red-500 hover:bg-red-500 hover:text-white dark:border-white/10 dark:bg-zinc-900/80 dark:text-white/50 dark:hover:border-red-500 dark:hover:bg-red-500 dark:hover:text-white"
+          }`}
+        >
+          {unlockedProjects[project.id]
+            ? "Lock"
+            : "Edit"}
+        </button>
+      </div>
+    </div>
+  </div>
+))}
+  
   {projects.map((project) =>
     project.frames.map((frame) => {
       const frameKey = `${project.id}:${frame.id}`;
