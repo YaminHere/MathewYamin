@@ -1323,120 +1323,98 @@ useEffect(() => {
   projectScales,
 ]);
 
-  // --------------------------------------------------
-  // ACTIVE COLLAGE ANIMATION
-  // --------------------------------------------------
+// --------------------------------------------------
+// PROJECT POSITION ANIMATION
+// --------------------------------------------------
 
-  useEffect(() => {
-    if (
-      !activeClassification ||
-      projects.length === 0
-    ) {
-      return;
-    }
+useEffect(() => {
+  if (projects.length === 0) {
+    return;
+  }
 
-    let frameId: number;
+  let frameId: number;
 
-    const animate = () => {
-      setPhysicsPositions(
-        (current) => {
-          const next = {
-            ...current,
-          };
+  const animate = () => {
+    setPhysicsPositions((current) => {
+      const next = {
+        ...current,
+      };
 
-          projects.forEach(
-            (project) => {
-              const currentPosition =
-                current[
-                  project.id
-                ] ??
-                projectPositions[
-                  project.id
-                ] ??
-                project.position;
+      let hasMovement = false;
 
-              const target =
-                activeTargets
-                  .current[
-                    project.id
-                  ] ??
-                inactiveTargets
-                  .current[
-                    project.id
-                  ];
+      projects.forEach((project) => {
+        const currentPosition =
+          current[project.id] ??
+          projectPositionsRef.current[project.id] ??
+          project.position;
 
-              if (!target) {
-                return;
-              }
+        /*
+         * When inside a classification:
+         *   activeTargets / inactiveTargets
+         *
+         * When returning to All Work:
+         *   activeTargets contains the normal
+         *   saved project positions.
+         */
+        const target =
+          activeTargets.current[project.id] ??
+          inactiveTargets.current[project.id];
 
-              const dx =
-                target.x -
-                currentPosition.x;
-
-              const dy =
-                target.y -
-                currentPosition.y;
-
-              const distance =
-                Math.hypot(
-                  dx,
-                  dy
-                );
-
-              if (
-                distance < 0.5
-              ) {
-                next[
-                  project.id
-                ] = target;
-
-                return;
-              }
-
-              const strength =
-                0.12;
-
-              next[
-                project.id
-              ] = {
-                x:
-                  currentPosition.x +
-                  dx *
-                    strength,
-
-                y:
-                  currentPosition.y +
-                  dy *
-                    strength,
-              };
-            }
-          );
-
-          return next;
+        if (!target) {
+          return;
         }
-      );
 
-      frameId =
-        requestAnimationFrame(
-          animate
-        );
-    };
+        const dx =
+          target.x -
+          currentPosition.x;
+
+        const dy =
+          target.y -
+          currentPosition.y;
+
+        const distance =
+          Math.hypot(dx, dy);
+
+        if (distance < 0.5) {
+          next[project.id] = target;
+          return;
+        }
+
+        hasMovement = true;
+
+        const strength = 0.12;
+
+        next[project.id] = {
+          x:
+            currentPosition.x +
+            dx * strength,
+
+          y:
+            currentPosition.y +
+            dy * strength,
+        };
+      });
+
+      return next;
+    });
 
     frameId =
       requestAnimationFrame(
         animate
       );
+  };
 
-    return () => {
-      cancelAnimationFrame(
-        frameId
-      );
-    };
-  }, [
-    activeClassification,
-    projects,
-    projectPositions,
-  ]);
+  frameId =
+    requestAnimationFrame(
+      animate
+    );
+
+  return () => {
+    cancelAnimationFrame(
+      frameId
+    );
+  };
+}, [projects]);
 
   // --------------------------------------------------
   // CAMERA TRANSFORM
@@ -2156,30 +2134,38 @@ const handleProjectResizePointerUp = (
   // --------------------------------------------------
 
   const resetView = () => {
-    attractionPoint.current =
-      null;
+  attractionPoint.current =
+    null;
 
-    activeTargets.current =
-      {};
+  inactiveTargets.current =
+    {};
 
-    inactiveTargets.current =
-      {};
+  focalProjectId.current =
+    null;
 
-    focalProjectId.current =
-      null;
-
-    setActiveClassification(
-      null
+  /*
+   * Animate every project back to
+   * its saved All Work position.
+   */
+  activeTargets.current =
+    Object.fromEntries(
+      projects.map((project) => [
+        project.id,
+        projectPositionsRef.current[
+          project.id
+        ] ??
+        project.position,
+      ])
     );
 
-    setPhysicsPositions(
-      projectPositions
-    );
+  setActiveClassification(
+    null
+  );
 
-    targetCamera.current = {
-      ...INITIAL_CAMERA,
-    };
+  targetCamera.current = {
+    ...INITIAL_CAMERA,
   };
+};
 
   // --------------------------------------------------
   // CATEGORY NAVIGATION
