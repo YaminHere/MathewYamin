@@ -627,6 +627,12 @@ export default function WorkPage() {
       >
     >({});
 
+    const [hoveredProjectId, setHoveredProjectId] =
+  useState<string | null>(null);
+
+  const [projectZIndexes, setProjectZIndexes] =
+  useState<Record<string, number>>({});
+
     const projectsRef = useRef<Project[]>([]);
 const projectPositionsRef =
   useRef<Record<string, { x: number; y: number }>>({});
@@ -642,12 +648,18 @@ const framePositionsRef =
   const frameElementRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
 
+  const projectZIndexesRef =
+  useRef<Record<string, number>>({});
+
 
   projectsRef.current = projects;
 projectPositionsRef.current = projectPositions;
 physicsPositionsRef.current = physicsPositions;
 projectScalesRef.current = projectScales;
 framePositionsRef.current = framePositions;
+
+projectZIndexesRef.current = projectZIndexes;
+
 
   const [unlockedProjects, setUnlockedProjects] =
     useState<
@@ -2635,6 +2647,29 @@ const handleProjectResizePointerUp = (
   // PROJECT DRAGGING
   // --------------------------------------------------
 
+
+  const bringProjectToFront = (
+  projectId: string
+) => {
+  const currentZIndexes =
+    projectZIndexesRef.current;
+
+  const highestZIndex =
+    Math.max(
+      0,
+      ...Object.values(currentZIndexes)
+    );
+
+  const nextZIndex =
+    highestZIndex + 1;
+
+  setProjectZIndexes((current) => ({
+    ...current,
+    [projectId]: nextZIndex,
+  }));
+};
+
+
   const handleProjectPointerDown =
     (
       e: PointerEvent<HTMLDivElement>,
@@ -2657,17 +2692,11 @@ const handleProjectResizePointerUp = (
         return;
       }
 
-  
-      // Edit mode allows the whole project to be dragged.
-if (
-  !unlockedProjects[
-    projectId
-  ]
-) {
-  return;
-}
+
 
       e.stopPropagation();
+
+      bringProjectToFront(projectId);
 
       const project =
         physicsPositions[
@@ -2698,6 +2727,8 @@ if (
         e.pointerId
       );
     };
+
+    
 
   const handleProjectPointerMove =
     (
@@ -3022,6 +3053,7 @@ if (
   top: position.y,
   transform: `scale(${projectScale})`,
   transformOrigin: "top left",
+  zIndex: projectZIndexes[project.id] ?? 0,
 }}
                   onPointerDown={(
                     e
@@ -3040,6 +3072,14 @@ if (
                   onPointerCancel={
                     handleProjectPointerUp
                   }
+
+                  onPointerEnter={() => {
+  setHoveredProjectId(project.id);
+}}
+
+onPointerLeave={() => {
+  setHoveredProjectId(null);
+}}
                 >
 
                   {/* PROJECT HEADER */}
@@ -3294,7 +3334,11 @@ if (
           ref={(element) => {
             frameLabelRefs.current[frameKey] = element;
           }}
-          className="absolute left-0 top-0 whitespace-nowrap text-[8px] leading-none uppercase tracking-[0.16em] text-black/35 dark:text-white/35"
+          className={`absolute left-0 top-0 whitespace-nowrap text-[8px] leading-none uppercase tracking-[0.16em] text-black/35 dark:text-white/35 transition-opacity ${
+  hoveredProjectId === project.id
+    ? "opacity-100"
+    : "opacity-0"
+}`}
         >
           {frame.title}
         </div>
