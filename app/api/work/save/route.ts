@@ -7,10 +7,11 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const {
-      projectId,
-      projectPosition,
-      frames,
-    } = body;
+  projectId,
+  projectPosition,
+  projectScale,
+  frames,
+} = body;
 
     if (!projectId) {
       return NextResponse.json(
@@ -33,6 +34,10 @@ export async function POST(request: Request) {
     const project = JSON.parse(existingFile);
 
     project.position = projectPosition;
+
+    if (typeof projectScale === "number") {
+  project.scale = projectScale;
+}
 
     project.frames = project.frames.map(
       (frame: any) => {

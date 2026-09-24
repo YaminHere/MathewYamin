@@ -37,6 +37,7 @@ type Project = {
     x: number;
     y: number;
   };
+    scale?: number;
   frames: ProjectFrame[];
 };
 
@@ -66,6 +67,7 @@ const getProjectSize = (
     { x: number; y: number }
   > = {}
 ) => {
+
   const padding = 40;
   const labelHeight = 28;
 
@@ -124,6 +126,30 @@ const getProjectSize = (
   };
 };
 
+const getScaledProjectSize = (
+  project: Project,
+  frameSizes: Record<string, FrameSize> = {},
+  framePositions: Record<
+    string,
+    { x: number; y: number }
+  > = {},
+  projectScales: Record<string, number> = {}
+) => {
+  const size = getProjectSize(
+    project,
+    frameSizes,
+    framePositions
+  );
+
+  const scale =
+    projectScales[project.id] ?? 1;
+
+  return {
+    width: size.width * scale,
+    height: size.height * scale,
+  };
+};
+
 const buildCollageLayout = (
   projects: Project[],
   focalId: string,
@@ -134,6 +160,7 @@ const buildCollageLayout = (
     string,
     { x: number; y: number }
   > = {},
+  projectScales: Record<string, number> = {},
   gap = 100
 ) => {
   const positions: Record<
@@ -152,11 +179,12 @@ const buildCollageLayout = (
   }
 
   const focalSize =
-    getProjectSize(
-      focalProject,
-      frameSizes,
-      framePositions
-    );
+  getScaledProjectSize(
+    focalProject,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
   // ------------------------------------------------
   // FOCAL PROJECT
@@ -184,18 +212,20 @@ const buildCollageLayout = (
       )
       .sort((a, b) => {
         const sizeA =
-          getProjectSize(
-            a,
-            frameSizes,
-            framePositions
-          );
+  getScaledProjectSize(
+    a,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
-        const sizeB =
-          getProjectSize(
-            b,
-            frameSizes,
-            framePositions
-          );
+const sizeB =
+  getScaledProjectSize(
+    b,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
         return (
           sizeB.width *
@@ -213,11 +243,12 @@ const buildCollageLayout = (
     project: Project
   ) => {
     const size =
-      getProjectSize(
-        project,
-        frameSizes,
-        framePositions
-      );
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
     const candidates: {
       x: number;
@@ -239,11 +270,12 @@ const buildCollageLayout = (
         }
 
         const placedSize =
-          getProjectSize(
-            placedProject,
-            frameSizes,
-            framePositions
-          );
+  getScaledProjectSize(
+    placedProject,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
         // Right
         candidates.push({
@@ -369,11 +401,12 @@ const buildCollageLayout = (
         }
 
         const otherSize =
-          getProjectSize(
-            other,
-            frameSizes,
-            framePositions
-          );
+  getScaledProjectSize(
+    other,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
         return !(
           x +
@@ -404,11 +437,12 @@ const buildCollageLayout = (
   remainingProjects.forEach(
     (project) => {
       const size =
-        getProjectSize(
-          project,
-          frameSizes,
-          framePositions
-        );
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
       const candidates =
         getCandidates(project);
@@ -576,6 +610,9 @@ export default function WorkPage() {
       >
     >({});
 
+    const [projectScales, setProjectScales] =
+  useState<Record<string, number>>({});
+
   const [frameSizes, setFrameSizes] =
     useState<
       Record<string, FrameSize>
@@ -632,6 +669,15 @@ export default function WorkPage() {
       projectX: number;
       projectY: number;
     } | null>(null);
+
+    const projectResize = useRef<{
+  id: string;
+  startX: number;
+  startY: number;
+  scale: number;
+  width: number;
+  height: number;
+} | null>(null);
 
   const frameDrag =
     useRef<{
@@ -711,10 +757,12 @@ export default function WorkPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          projectId,
-          projectPosition: position,
-          frames,
-        }),
+  projectId,
+  projectPosition: position,
+  projectScale:
+    projectScales[projectId] ?? 1,
+  frames,
+}),
       }
     );
 
@@ -776,6 +824,16 @@ const saveAllProjects = async () => {
         setProjects(
           loadedProjects
         );
+
+        const initialProjectScales =
+  Object.fromEntries(
+    loadedProjects.map((project) => [
+      project.id,
+      project.scale ?? 1,
+    ])
+  );
+
+setProjectScales(initialProjectScales);
 
         const initialPositions =
           Object.fromEntries(
@@ -843,14 +901,12 @@ setPhysicsPositions(initialPositions);
   // --------------------------------------------------
 
   const resolveActiveCollisions = (
-    activeProjects: Project[],
-    positions: Record<
-      string,
-      { x: number; y: number }
-    >,
-    focalId: string | null,
-    gap = 100
-  ) => {
+  activeProjects: Project[],
+  positions: Record<string, { x: number; y: number }>,
+  focalId: string | null,
+  projectScales: Record<string, number> = {},
+  gap = 100
+) => {
     const next = {
       ...positions,
     };
@@ -903,18 +959,20 @@ setPhysicsPositions(initialPositions);
             getPosition(b);
 
           const aSize =
-            getProjectSize(
-              a,
-              frameSizes,
-              framePositions
-            );
+  getScaledProjectSize(
+    a,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
           const bSize =
-            getProjectSize(
-              b,
-              frameSizes,
-              framePositions
-            );
+  getScaledProjectSize(
+    b,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
           const aRight =
             aPosition.x +
@@ -1171,11 +1229,12 @@ useEffect(() => {
   }
 
   const focalSize =
-    getProjectSize(
-      focalProject,
-      frameSizes,
-      framePositions
-    );
+  getScaledProjectSize(
+    focalProject,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
   // Keep the focal project's CENTER
   // exactly where it currently is.
@@ -1190,24 +1249,26 @@ useEffect(() => {
   // Completely rebuild the collage using
   // the NEW project dimensions.
   const rebuiltLayout =
-    buildCollageLayout(
-      activeProjects,
-      focalProject.id,
-      anchorX,
-      anchorY,
-      frameSizes,
-      framePositions,
-      100
-    );
+  buildCollageLayout(
+    activeProjects,
+    focalProject.id,
+    anchorX,
+    anchorY,
+    frameSizes,
+    framePositions,
+    projectScales,
+    100
+  );
 
   // Final collision pass.
   const resolvedLayout =
-    resolveActiveCollisions(
-      activeProjects,
-      rebuiltLayout,
-      focalProject.id,
-      100
-    );
+  resolveActiveCollisions(
+    activeProjects,
+    rebuiltLayout,
+    focalProject.id,
+    projectScales,
+    100
+  );
 
   activeTargets.current =
     resolvedLayout;
@@ -1216,6 +1277,7 @@ useEffect(() => {
   projects,
   frameSizes,
   framePositions,
+  projectScales,
 ]);
 
   // --------------------------------------------------
@@ -1603,6 +1665,110 @@ useEffect(() => {
     }
   };
 
+
+
+
+  
+
+
+  const handleProjectResizePointerDown = (
+  e: PointerEvent<HTMLDivElement>,
+  projectId: string
+) => {
+  e.stopPropagation();
+
+  const scale =
+    projectScales[projectId] ?? 1;
+
+  const project = projects.find(
+    (item) => item.id === projectId
+  );
+
+  if (!project) return;
+
+  const size = getProjectSize(
+    project,
+    frameSizes,
+    framePositions
+  );
+
+  projectResize.current = {
+    id: projectId,
+    startX: e.clientX,
+    startY: e.clientY,
+    scale,
+    width: size.width,
+    height: size.height,
+  };
+
+  e.currentTarget.setPointerCapture(
+    e.pointerId
+  );
+};
+
+const handleProjectResizePointerMove = (
+  e: PointerEvent<HTMLDivElement>
+) => {
+  const resize =
+    projectResize.current;
+
+  if (!resize) return;
+
+  const cameraScale =
+    camera.current.scale;
+
+  const dx =
+    (e.clientX - resize.startX) /
+    cameraScale;
+
+  const dy =
+    (e.clientY - resize.startY) /
+    cameraScale;
+
+  const delta =
+    Math.abs(dx) > Math.abs(dy)
+      ? dx
+      : dy;
+
+  const scaleDelta =
+    delta / resize.width;
+
+  const nextScale = Math.max(
+    0.25,
+    Math.min(
+      3,
+      resize.scale + scaleDelta
+    )
+  );
+
+  setProjectScales(
+    (current) => ({
+      ...current,
+      [resize.id]: nextScale,
+    })
+  );
+};
+
+const handleProjectResizePointerUp = (
+  e: PointerEvent<HTMLDivElement>
+) => {
+  projectResize.current = null;
+
+  if (
+    e.currentTarget.hasPointerCapture(
+      e.pointerId
+    )
+  ) {
+    e.currentTarget.releasePointerCapture(
+      e.pointerId
+    );
+  }
+};
+
+
+
+
+
   // --------------------------------------------------
   // FRAME RESIZING
   // --------------------------------------------------
@@ -1964,11 +2130,12 @@ useEffect(() => {
           project.position;
 
         const size =
-          getProjectSize(
-            project,
-            frameSizes,
-            framePositions
-          );
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
         const centerX =
           position.x +
@@ -2010,7 +2177,8 @@ useEffect(() => {
         anchorX,
         anchorY,
         frameSizes,
-        framePositions
+        framePositions,
+        projectScales
       );
 
     /*
@@ -2018,11 +2186,12 @@ useEffect(() => {
      * layout as well.
      */
     activeTargets.current =
-      resolveActiveCollisions(
-        activeProjects,
-        layout,
-        focalProject.id
-      );
+  resolveActiveCollisions(
+    activeProjects,
+    layout,
+    focalProject.id,
+    projectScales
+  );
 
     focalProjectId.current =
       focalProject.id;
@@ -2040,11 +2209,12 @@ useEffect(() => {
             ];
 
           const size =
-            getProjectSize(
-              project,
-              frameSizes,
-              framePositions
-            );
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
           return {
             project,
@@ -2172,12 +2342,12 @@ useEffect(() => {
         }
 
         const size =
-          getProjectSize(
-            project,
-            frameSizes,
-            framePositions
-          );
-
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
         if (
           x <
             position.x +
@@ -2215,11 +2385,12 @@ useEffect(() => {
         }
 
         const size =
-          getProjectSize(
-            project,
-            frameSizes,
-            framePositions
-          );
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
         if (
           x <
@@ -2262,11 +2433,12 @@ useEffect(() => {
           project.position;
 
         const size =
-          getProjectSize(
-            project,
-            frameSizes,
-            framePositions
-          );
+  getScaledProjectSize(
+    project,
+    frameSizes,
+    framePositions,
+    projectScales
+  );
 
         const centerX =
           current.x +
@@ -2801,6 +2973,9 @@ useEffect(() => {
               const projectHeight =
                 projectSize.height;
 
+                const projectScale =
+  projectScales[project.id] ?? 1;
+
               return (
                 <div
                   key={
@@ -2808,12 +2983,11 @@ useEffect(() => {
                   }
                   className="absolute cursor-grab active:cursor-grabbing"
                   style={{
-                    left:
-                      position.x,
-
-                    top:
-                      position.y,
-                  }}
+  left: position.x,
+  top: position.y,
+  transform: `scale(${projectScale})`,
+  transformOrigin: "top left",
+}}
                   onPointerDown={(
                     e
                   ) =>
@@ -2890,6 +3064,8 @@ useEffect(() => {
                         projectHeight,
                     }}
                   >
+
+                    
 
                     {/* PROJECT FRAMES */}
 
@@ -3029,6 +3205,33 @@ useEffect(() => {
     </div>
   );
 })}
+
+{unlockedProjects[project.id] && (
+  <div
+    className="absolute bottom-[-6px] right-[-6px] z-30 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 bg-white/95 shadow-sm"
+    style={{
+      touchAction: "none",
+    }}
+    onPointerDown={(e) => {
+      e.stopPropagation();
+
+      handleProjectResizePointerDown(
+        e,
+        project.id
+      );
+    }}
+    onPointerMove={
+      handleProjectResizePointerMove
+    }
+    onPointerUp={
+      handleProjectResizePointerUp
+    }
+    onPointerCancel={
+      handleProjectResizePointerUp
+    }
+    aria-label={`Resize ${project.title}`}
+  />
+)}
 
                   </div>
 
