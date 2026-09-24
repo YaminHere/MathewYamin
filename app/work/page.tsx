@@ -69,7 +69,6 @@ const getProjectSize = (
 ) => {
 
   const padding = 40;
-  const labelHeight = 28;
 
   const width =
     Math.max(
@@ -112,10 +111,9 @@ const getProjectSize = (
           };
 
         return (
-          position.y +
-          labelHeight +
-          size.height
-        );
+  position.y +
+  size.height
+);
       }),
       0
     ) + padding;
@@ -555,6 +553,9 @@ export default function WorkPage() {
   const canvasRef =
     useRef<HTMLDivElement>(null);
 
+    const screenLabelLayerRef =
+  useRef<HTMLDivElement | null>(null);
+
   // --------------------------------------------------
   // CAMERA
   // --------------------------------------------------
@@ -625,6 +626,28 @@ export default function WorkPage() {
         { x: number; y: number }
       >
     >({});
+
+    const projectsRef = useRef<Project[]>([]);
+const projectPositionsRef =
+  useRef<Record<string, { x: number; y: number }>>({});
+const physicsPositionsRef =
+  useRef<Record<string, { x: number; y: number }>>({});
+const projectScalesRef =
+  useRef<Record<string, number>>({});
+const framePositionsRef =
+  useRef<Record<string, { x: number; y: number }>>({});
+
+  const frameLabelRefs =
+  useRef<Record<string, HTMLDivElement | null>>({});
+  const frameElementRefs =
+  useRef<Record<string, HTMLDivElement | null>>({});
+
+
+  projectsRef.current = projects;
+projectPositionsRef.current = projectPositions;
+physicsPositionsRef.current = physicsPositions;
+projectScalesRef.current = projectScales;
+framePositionsRef.current = framePositions;
 
   const [unlockedProjects, setUnlockedProjects] =
     useState<
@@ -1399,22 +1422,62 @@ useEffect(() => {
   // CAMERA TRANSFORM
   // --------------------------------------------------
 
-  const applyTransform =
-    () => {
-      const canvas =
-        canvasRef.current;
+ const updateScreenSpaceLabels = () => {
+  const viewport = viewportRef.current;
+  if (!viewport) return;
 
-      if (!canvas) return;
+  const viewportRect =
+    viewport.getBoundingClientRect();
 
-      const {
-        x,
-        y,
-        scale,
-      } = camera.current;
+  const cameraScale =
+    camera.current.scale;
 
-      canvas.style.transform =
-        `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
-    };
+  projectsRef.current.forEach((project) => {
+    project.frames.forEach((frame) => {
+      const frameKey =
+        `${project.id}:${frame.id}`;
+
+      const frameElement =
+        frameElementRefs.current[frameKey];
+
+      const label =
+        frameLabelRefs.current[frameKey];
+
+      if (!frameElement || !label) return;
+
+      const frameRect =
+        frameElement.getBoundingClientRect();
+
+      const gap =
+        8 * cameraScale;
+
+      const x =
+        frameRect.left -
+        viewportRect.left;
+
+      const y =
+        frameRect.top -
+        viewportRect.top -
+        gap -
+        label.offsetHeight;
+
+      label.style.transform =
+        `translate3d(${x}px, ${y}px, 0)`;
+    });
+  });
+};
+
+const applyTransform = () => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+
+  const { x, y, scale } = camera.current;
+
+  canvas.style.transform =
+    `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+
+  updateScreenSpaceLabels();
+};
 
   const animateCamera =
     () => {
@@ -2822,7 +2885,7 @@ if (
   // --------------------------------------------------
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-[#f7f7f5] text-[#111]">
+    <main className="fixed inset-0 overflow-hidden bg-[#f7f7f5] text-[#111] dark:bg-zinc-950 dark:text-white">
 
       {/* HEADER */}
 
@@ -2832,7 +2895,7 @@ if (
           MATHEW YAMIN
         </div>
 
-        <nav className="pointer-events-auto hidden items-center gap-5 rounded-full bg-white/80 px-5 py-3 text-xs backdrop-blur-md md:flex">
+        <nav className="pointer-events-auto hidden items-center gap-5 rounded-full bg-white/80 dark:bg-zinc-900/80 px-5 py-3 text-xs backdrop-blur-md md:flex">
 
           <button
             onClick={
@@ -2983,11 +3046,11 @@ if (
 
                   <div className="mb-4 flex items-center justify-between gap-4">
   <div className="flex items-center gap-2">
-    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-black/70">
+    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-black/70 dark:text-white/70">
       {project.title}
     </span>
 
-    <span className="text-[9px] text-black/30">
+    <span className="text-[9px] text-black/30 dark:text-white/30">
       {project.year}
     </span>
 
@@ -2995,7 +3058,7 @@ if (
       (classification) => (
         <span
           key={classification}
-          className="text-[8px] uppercase tracking-[0.12em] text-black/30"
+          className="text-[8px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30"
         >
           {classification}
         </span>
@@ -3018,8 +3081,8 @@ if (
       className={`rounded-full border px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] transition-colors ${
   unlockedProjects[project.id]
     ? "border-red-500 bg-red-500 text-white hover:bg-red-600"
-    : "border-black/10 bg-white/80 text-black/50 hover:bg-black hover:text-white"
-}`}
+    : "border-black/10 bg-white/80 text-black/50 hover:border-red-500 hover:bg-red-500 hover:text-white dark:border-white/10 dark:bg-zinc-900/80 dark:text-white/50 dark:hover:border-red-500 dark:hover:bg-red-500 dark:hover:text-white"
+  }`}
     >
       {unlockedProjects[project.id]
         ? "Lock"
@@ -3031,11 +3094,11 @@ if (
                   {/* PROJECT BOUNDARY */}
 
                   <div
-                    className={`relative rounded-[2rem] border ${
+                    className={`relative rounded-[2rem] border transition-colors ${
   unlockedProjects[project.id]
     ? "border-red-500"
-    : "border-black/10"
-} bg-white/60`}
+    : "border-black/10 dark:border-white/10"
+} bg-white/60 dark:bg-zinc-900/60`}
                     style={{
                       width:
                         projectWidth,
@@ -3075,6 +3138,9 @@ if (
   return (
     <div
       key={frame.id}
+      ref={(element) => {
+  frameElementRefs.current[frameKey] = element;
+}}
       className={`absolute ${
         isUnlocked
           ? "cursor-move"
@@ -3101,16 +3167,7 @@ if (
         handleFramePointerUp
       }
     >
-      {/* FRAME LABEL */}
-
-      <div
-        className="mb-2 text-[9px] uppercase tracking-[0.16em] text-black/35"
-        onPointerDown={(e) =>
-          e.stopPropagation()
-        }
-      >
-        {frame.title}
-      </div>
+      
 
       {/* FRAME / MEDIA */}
 
@@ -3156,7 +3213,7 @@ if (
 
   {isUnlocked && (
     <div
-      className="absolute bottom-[-4px] right-[-4px] z-20 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 bg-white/95 shadow-sm"
+      className="absolute bottom-[-4px] right-[-4px] z-20 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
       style={{
         touchAction: "none",
       }}
@@ -3188,7 +3245,7 @@ if (
 
 {unlockedProjects[project.id] && (
   <div
-    className="absolute bottom-[-6px] right-[-6px] z-30 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 bg-white/95 shadow-sm"
+    className="absolute bottom-[-6px] right-[-6px] z-30 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
     style={{
       touchAction: "none",
     }}
@@ -3220,13 +3277,37 @@ if (
             }
           )}
 
+         </div>
+
+        {/* SCREEN-SPACE LABELS */}
+<div
+  ref={screenLabelLayerRef}
+  className="pointer-events-none absolute inset-0 z-40"
+>
+  {projects.map((project) =>
+    project.frames.map((frame) => {
+      const frameKey = `${project.id}:${frame.id}`;
+
+      return (
+        <div
+          key={frameKey}
+          ref={(element) => {
+            frameLabelRefs.current[frameKey] = element;
+          }}
+          className="absolute left-0 top-0 whitespace-nowrap text-[8px] leading-none uppercase tracking-[0.16em] text-black/35 dark:text-white/35"
+        >
+          {frame.title}
         </div>
+      );
+    })
+  )}
+</div>
 
       </div>
 
       {/* ZOOM CONTROLS */}
 
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-md">
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-1 rounded-full bg-white/90 dark:bg-zinc-900/90 p-1 shadow-sm backdrop-blur-md">
 
         <button
           onClick={() =>
@@ -3241,7 +3322,7 @@ if (
           onClick={
             resetView
           }
-          className="flex h-9 w-9 items-center justify-center rounded-full text-xs hover:bg-black/5"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-xs hover:bg-black/5 dark:hover:bg-white/5"
         >
           ⌖
         </button>
@@ -3259,7 +3340,7 @@ if (
 
       {/* MINIMAP */}
 
-      <div className="fixed bottom-6 left-6 z-50 hidden h-28 w-44 overflow-hidden rounded-xl border border-black/10 bg-white/70 p-2 backdrop-blur-md md:block">
+      <div className="fixed bottom-6 left-6 z-50 hidden h-28 w-44 overflow-hidden rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70 p-2 backdrop-blur-md md:block">
 
         <div className="relative h-full w-full">
 
@@ -3279,7 +3360,7 @@ if (
                   key={
                     project.id
                   }
-                  className="absolute h-6 w-10 rounded bg-black/10"
+                  className="absolute h-6 w-10 rounded bg-black/10 dark:bg-white/10"
                   style={{
                     left:
                       position.x /
@@ -3294,7 +3375,7 @@ if (
             }
           )}
 
-          <div className="absolute left-2 top-2 h-16 w-24 rounded border border-black/60" />
+          <div className="absolute left-2 top-2 h-16 w-24 rounded border border-black/60 dark:border-white/60"/>
 
         </div>
 
