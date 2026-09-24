@@ -1480,6 +1480,9 @@ if (header && boundary) {
     gap -
     header.offsetHeight;
 
+    header.style.width =
+  `${boundaryRect.width}px`;
+
   header.style.transform =
     `translate3d(${x}px, ${y}px, 0)`;
 }
@@ -3337,7 +3340,15 @@ ref={(element) => {
     className="pointer-events-auto absolute left-0 top-0"
   >
     <div className="flex items-center justify-between gap-4">
-      <div className="flex items-center gap-2">
+      <div
+  className="relative flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
+  style={{
+    maskImage:
+      "linear-gradient(to right, black 0%, black calc(100% - 24px), transparent 100%)",
+    WebkitMaskImage:
+      "linear-gradient(to right, black 0%, black calc(100% - 24px), transparent 100%)",
+  }}
+>
         <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-black/70 dark:text-white/70">
           {project.title}
         </span>
@@ -3357,8 +3368,9 @@ ref={(element) => {
           )
         )}
       </div>
+      
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           onPointerDown={(e) =>
