@@ -2594,15 +2594,15 @@ const handleProjectResizePointerUp = (
         return;
       }
 
-      // Unlocked projects are controlled
-      // through their frames instead.
-      if (
-        unlockedProjects[
-          projectId
-        ]
-      ) {
-        return;
-      }
+  
+      // Edit mode allows the whole project to be dragged.
+if (
+  !unlockedProjects[
+    projectId
+  ]
+) {
+  return;
+}
 
       e.stopPropagation();
 
@@ -2919,34 +2919,6 @@ const handleProjectResizePointerUp = (
           }}
         >
 
-          {/* INTRO */}
-
-          <div
-            className="absolute"
-            style={{
-              left: 120,
-              top: 180,
-              width: 600,
-            }}
-          >
-
-            <p className="mb-4 text-xs uppercase tracking-[0.2em] text-black/40">
-              Selected + extended work
-            </p>
-
-            <h1 className="text-7xl font-medium tracking-[-0.06em]">
-              All Work
-            </h1>
-
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-black/50">
-              A spatial archive of
-              brand, product, web,
-              campaigns, visual design
-              and illustration.
-            </p>
-
-          </div>
-
           {/* PROJECTS */}
 
           {projects.map(
@@ -3043,7 +3015,11 @@ const handleProjectResizePointerUp = (
         e.stopPropagation();
         toggleProjectLock(project.id);
       }}
-      className="rounded-full border border-black/10 bg-white/80 px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] text-black/50 transition-colors hover:bg-black hover:text-white"
+      className={`rounded-full border px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] transition-colors ${
+  unlockedProjects[project.id]
+    ? "border-red-500 bg-red-500 text-white hover:bg-red-600"
+    : "border-black/10 bg-white/80 text-black/50 hover:bg-black hover:text-white"
+}`}
     >
       {unlockedProjects[project.id]
         ? "Lock"
@@ -3055,7 +3031,11 @@ const handleProjectResizePointerUp = (
                   {/* PROJECT BOUNDARY */}
 
                   <div
-                    className="relative rounded-[2rem] border border-black/10 bg-white/60"
+                    className={`relative rounded-[2rem] border ${
+  unlockedProjects[project.id]
+    ? "border-red-500"
+    : "border-black/10"
+} bg-white/60`}
                     style={{
                       width:
                         projectWidth,
