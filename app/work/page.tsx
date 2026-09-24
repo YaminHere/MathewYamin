@@ -2901,10 +2901,16 @@ useEffect(() => {
     frame.position;
 
   const frameSize =
-    frameSizes[frameKey] ?? {
-      width: 420,
-      height: 300,
-    };
+  frameSizes[frameKey] ??
+  (frame.width && frame.height
+    ? {
+        width: frame.width,
+        height: frame.height,
+      }
+    : {
+        width: 420,
+        height: 300,
+      });
 
   const isUnlocked =
     unlockedProjects[project.id];
@@ -2949,81 +2955,76 @@ useEffect(() => {
         {frame.title}
       </div>
 
-      {/* FRAME WRAPPER */}
+      {/* FRAME / MEDIA */}
 
-      <div
-        className="relative rounded-xl"
-        style={{
-          width: frameSize.width,
-          height: frameSize.height,
-        }}
-      >
-        {/* MEDIA */}
+<div
+  className="relative w-fit"
+  style={{
+    width: frameSize.width,
+  }}
+>
+  {frame.type === "video" ? (
+    <video
+      src={frame.src}
+      className="block h-auto w-full rounded-xl"
+      muted
+      loop
+      autoPlay
+      playsInline
+      onLoadedMetadata={(e) =>
+        handleVideoMetadata(
+          project.id,
+          frame.id,
+          e.currentTarget
+        )
+      }
+    />
+  ) : (
+    <img
+      src={frame.src}
+      alt={frame.title}
+      className="block h-auto w-full rounded-xl"
+      draggable={false}
+      onLoad={(e) =>
+        handleImageLoad(
+          project.id,
+          frame.id,
+          e.currentTarget
+        )
+      }
+    />
+  )}
 
-        <div className="absolute inset-0 overflow-hidden rounded-xl">
-          {frame.type === "video" ? (
-            <video
-              src={frame.src}
-              className="h-full w-full object-contain"
-              muted
-              loop
-              autoPlay
-              playsInline
-              onLoadedMetadata={(e) =>
-                handleVideoMetadata(
-                  project.id,
-                  frame.id,
-                  e.currentTarget
-                )
-              }
-            />
-          ) : (
-            <img
-              src={frame.src}
-              alt={frame.title}
-              className="h-full w-full object-contain"
-              draggable={false}
-              onLoad={(e) =>
-                handleImageLoad(
-                  project.id,
-                  frame.id,
-                  e.currentTarget
-                )
-              }
-            />
-          )}
-        </div>
+  {/* RESIZE HANDLE */}
 
-        {/* RESIZE HANDLE */}
+  {isUnlocked && (
+    <div
+      className="absolute bottom-[-4px] right-[-4px] z-20 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 bg-white/95 shadow-sm"
+      style={{
+        touchAction: "none",
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
 
-        {isUnlocked && (
-          <div
-            className="absolute bottom-[-4px] right-[-4px] z-20 h-5 w-5 cursor-se-resize rounded-sm border border-black/20 bg-white/95 shadow-sm"
-            style={{
-              touchAction: "none",
-            }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-
-              handleFrameResizePointerDown(
-                e,
-                project.id,
-                frame.id
-              );
-            }}
-            onPointerMove={
-              handleFrameResizePointerMove
-            }
-            onPointerUp={
-              handleFrameResizePointerUp
-            }
-            onPointerCancel={
-              handleFrameResizePointerUp
-            }
-            aria-label={`Resize ${frame.title}`}
-          />
-        )}
-      </div>
+        handleFrameResizePointerDown(
+          e,
+          project.id,
+          frame.id
+        );
+      }}
+      onPointerMove={
+        handleFrameResizePointerMove
+      }
+      onPointerUp={
+        handleFrameResizePointerUp
+      }
+      onPointerCancel={
+        handleFrameResizePointerUp
+      }
+      aria-label={`Resize ${frame.title}`}
+    />
+  )}
+</div>
     </div>
   );
 })}

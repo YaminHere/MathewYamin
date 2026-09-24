@@ -7,8 +7,8 @@
     "visual"
   ],
   "position": {
-    "x": 3815.421867529858,
-    "y": 2112.0785023165913
+    "x": 5626.85043895843,
+    "y": 932.0785023165912
   },
   "frames": [
     {
@@ -19,7 +19,9 @@
       "position": {
         "x": 40,
         "y": 40
-      }
+      },
+      "width": 400,
+      "height": 500
     },
     {
       "id": "social",
@@ -27,9 +29,11 @@
       "type": "image",
       "src": "/work/procan-eats/packaging.jpg",
       "position": {
-        "x": 620,
-        "y": 70
-      }
+        "x": 488.57142857142856,
+        "y": 35.714285714285715
+      },
+      "width": 438.0214541120381,
+      "height": 500
     },
     {
       "id": "art-direction",
@@ -37,9 +41,11 @@
       "type": "image",
       "src": "/work/procan-eats/identity.jpg",
       "position": {
-        "x": 200,
-        "y": 560
-      }
+        "x": 40,
+        "y": 574.2857142857143
+      },
+      "width": 400,
+      "height": 500
     }
   ]
 }

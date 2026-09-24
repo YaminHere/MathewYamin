@@ -8,8 +8,8 @@
     "visual"
   ],
   "position": {
-    "x": 2565.8294269327134,
-    "y": -1701.0623935304402
+    "x": 5997.257998361286,
+    "y": -646.7766792447258
   },
   "frames": [
     {
@@ -20,7 +20,9 @@
       "position": {
         "x": 40,
         "y": 40
-      }
+      },
+      "width": 400,
+      "height": 500
     },
     {
       "id": "campaigns",
@@ -28,9 +30,11 @@
       "type": "image",
       "src": "/work/procan-eats/packaging.jpg",
       "position": {
-        "x": 600,
-        "y": 60
-      }
+        "x": 107.63984988701526,
+        "y": 101.86057956426185
+      },
+      "width": 438.0214541120381,
+      "height": 500
     },
     {
       "id": "visual",
@@ -38,9 +42,11 @@
       "type": "image",
       "src": "/work/procan-eats/identity.jpg",
       "position": {
-        "x": 250,
-        "y": 480
-      }
+        "x": 180.2323673928969,
+        "y": 192.9560258450615
+      },
+      "width": 400,
+      "height": 500
     }
   ]
 }
