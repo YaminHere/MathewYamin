@@ -1,14 +1,18 @@
 {
   "id": "hayyak-campaign",
-  "title": "Hayyak Campaign",
+  "title": "Hayyak Campaign new",
   "year": 2025,
   "classifications": [
     "campaigns",
-    "visual"
+    "visual",
+    "product",
+    "web",
+    "brand",
+    "illustration"
   ],
   "position": {
-    "x": -1503.668615466934,
-    "y": 536.2187233916628
+    "x": 2948.372125673807,
+    "y": 365.99241296497524
   },
   "frames": [
     {

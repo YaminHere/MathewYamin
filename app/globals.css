@@ -28,3 +28,18 @@
     display: none;
   }
 }
+
+.title-fade {
+  mask-image: linear-gradient(
+    to right,
+    black 0%,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black 0%,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+}

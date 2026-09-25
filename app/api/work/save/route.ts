@@ -1,15 +1,39 @@
+import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
+ const CLASSIFICATIONS = [
+  "brand",
+  "product",
+  "web",
+  "campaigns",
+  "visual",
+  "illustration",
+];
+
+
 export async function POST(request: Request) {
+  const session = await auth();
+
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   try {
+
     const body = await request.json();
 
     const {
   projectId,
+  projectTitle,
   projectPosition,
   projectScale,
+  projectClassifications,
+  projectYear,
   frames,
 } = body;
 
@@ -28,15 +52,48 @@ export async function POST(request: Request) {
       "project.json"
     );
 
+   
     const existingFile =
       await fs.readFile(projectPath, "utf8");
 
     const project = JSON.parse(existingFile);
 
+    if (typeof projectTitle === "string") {
+  project.title = projectTitle;
+}
     project.position = projectPosition;
 
     if (typeof projectScale === "number") {
   project.scale = projectScale;
+}
+
+if (Array.isArray(projectClassifications)) {
+  const validClassifications =
+    projectClassifications.filter(
+      (classification: unknown) =>
+        typeof classification === "string" &&
+        CLASSIFICATIONS.includes(classification)
+    );
+
+  if (validClassifications.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "A project must have at least one classification",
+      },
+      { status: 400 }
+    );
+  }
+
+  project.classifications =
+    validClassifications;
+}
+
+if (
+  typeof projectYear === "number" &&
+  Number.isInteger(projectYear)
+) {
+  project.year = projectYear;
 }
 
     project.frames = project.frames.map(
@@ -51,16 +108,20 @@ export async function POST(request: Request) {
         }
 
         return {
-          ...frame,
-          position: editedFrame.position,
-          ...(editedFrame.width &&
-          editedFrame.height
-            ? {
-                width: editedFrame.width,
-                height: editedFrame.height,
-              }
-            : {}),
-        };
+  ...frame,
+  title:
+    typeof editedFrame.title === "string"
+      ? editedFrame.title
+      : frame.title,
+  position: editedFrame.position,
+  ...(editedFrame.width &&
+  editedFrame.height
+    ? {
+        width: editedFrame.width,
+        height: editedFrame.height,
+      }
+    : {}),
+};
       }
     );
 

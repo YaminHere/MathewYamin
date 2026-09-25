@@ -1,6 +1,6 @@
 {
   "id": "ffm",
-  "title": "Film Frames Media",
+  "title": "FFM",
   "year": 2026,
   "classifications": [
     "brand",
@@ -8,8 +8,8 @@
     "visual"
   ],
   "position": {
-    "x": 418.6298924621035,
-    "y": 648.4006757390741
+    "x": 1025.7727496049606,
+    "y": 472.6863900247884
   },
   "frames": [
     {

@@ -7,13 +7,13 @@
     "web"
   ],
   "position": {
-    "x": 2193.699266064903,
-    "y": 245.5773693377098
+    "x": 1365.1278374934743,
+    "y": 511.2916550519955
   },
   "frames": [
     {
       "id": "product",
-      "title": "Product",
+      "title": "new product",
       "type": "image",
       "src": "/work/procan-eats/identity.jpg",
       "position": {
@@ -48,5 +48,5 @@
       "height": 500
     }
   ],
-  "scale": 0.25
+  "scale": 0.268799423551913
 }

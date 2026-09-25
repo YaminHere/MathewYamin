@@ -1,14 +1,16 @@
 {
   "id": "base-eleven",
-  "title": "Base Eleven",
-  "year": 2025,
+  "title": "Base Elevenn",
+  "year": 2026,
   "classifications": [
     "product",
-    "visual"
+    "visual",
+    "web",
+    "illustration"
   ],
   "position": {
-    "x": -824.2502687414972,
-    "y": 180.08081800319735
+    "x": -401.2307325286074,
+    "y": 1084.4616766376064
   },
   "frames": [
     {
@@ -17,8 +19,8 @@
       "type": "image",
       "src": "/work/base-eleven/identity.jpg",
       "position": {
-        "x": 37.21855853737159,
-        "y": 20.529909761601147
+        "x": 0,
+        "y": 0
       },
       "width": 600,
       "height": 337.5
@@ -29,11 +31,11 @@
       "type": "image",
       "src": "/work/base-eleven/campaign.jpg",
       "position": {
-        "x": 71.10000936356992,
-        "y": 416.0721129808965
+        "x": 64.68459755996739,
+        "y": 341.65333605910706
       },
-      "width": 400,
-      "height": 500
+      "width": 405.6,
+      "height": 507
     },
     {
       "id": "packaging",
@@ -41,12 +43,12 @@
       "type": "image",
       "src": "/work/base-eleven/packaging.jpg",
       "position": {
-        "x": 507.9667137166972,
-        "y": 517.0712385607976
+        "x": 652.2709577638992,
+        "y": 0
       },
-      "width": 178.43223163198434,
-      "height": 317.10510730249393
+      "width": 485.2674839812878,
+      "height": 862.4047133797886
     }
   ],
-  "scale": 0.32288996035244766
+  "scale": 0.25
 }
