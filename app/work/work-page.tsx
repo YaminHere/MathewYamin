@@ -647,6 +647,8 @@ export default function WorkPage({
   const [editingFrameTitle, setEditingFrameTitle] =
   useState<string | null>(null);
 
+  const [hoveredEditProject, setHoveredEditProject] =
+  useState<string | null>(null);
   
 
   const [projectZIndexes, setProjectZIndexes] =
@@ -671,6 +673,12 @@ const framePositionsRef =
 
   const projectTitleRefs =
   useRef<Record<string, HTMLElement | null>>({});
+
+
+  const editPopoverCloseTimeout =
+  useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const projectBoundaryRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
@@ -1505,11 +1513,12 @@ useEffect(() => {
   };
 }, [projects]);
 
-  // --------------------------------------------------
-  // CAMERA TRANSFORM
-  // --------------------------------------------------
 
- const updateScreenSpaceLabels = () => {
+// --------------------------------------------------
+// CAMERA TRANSFORM
+// --------------------------------------------------
+
+const updateScreenSpaceLabels = () => {
   const viewport = viewportRef.current;
   if (!viewport) return;
 
@@ -1520,40 +1529,36 @@ useEffect(() => {
     camera.current.scale;
 
   projectsRef.current.forEach((project) => {
-
     const header =
-  projectHeaderRefs.current[project.id];
+      projectHeaderRefs.current[project.id];
 
-const boundary =
-  projectBoundaryRefs.current[project.id];
+    const boundary =
+      projectBoundaryRefs.current[project.id];
 
-if (header && boundary) {
-  const boundaryRect =
-    boundary.getBoundingClientRect();
+    if (header && boundary) {
+      const boundaryRect =
+        boundary.getBoundingClientRect();
 
-  const viewportRect =
-    viewport.getBoundingClientRect();
+      const gap =
+        8 * cameraScale;
 
-  const gap =
-    8 * cameraScale;
+      const x =
+        boundaryRect.left -
+        viewportRect.left;
 
-  const x =
-    boundaryRect.left -
-    viewportRect.left;
+      const y =
+        boundaryRect.top -
+        viewportRect.top -
+        gap -
+        header.offsetHeight;
 
-  const y =
-    boundaryRect.top -
-    viewportRect.top -
-    gap -
-    header.offsetHeight;
+      header.style.width =
+        `${boundaryRect.width}px`;
 
-    header.style.width =
-  `${boundaryRect.width}px`;
+      header.style.transform =
+        `translate3d(${x}px, ${y}px, 0)`;
+    }
 
-  header.style.transform =
-    `translate3d(${x}px, ${y}px, 0)`;
-}
-    
     project.frames.forEach((frame) => {
       const frameKey =
         `${project.id}:${frame.id}`;
@@ -1564,7 +1569,9 @@ if (header && boundary) {
       const label =
         frameLabelRefs.current[frameKey];
 
-      if (!frameElement || !label) return;
+      if (!frameElement || !label) {
+        return;
+      }
 
       const frameRect =
         frameElement.getBoundingClientRect();
@@ -1589,10 +1596,16 @@ if (header && boundary) {
 };
 
 const applyTransform = () => {
-  const canvas = canvasRef.current;
+  const canvas =
+    canvasRef.current;
+
   if (!canvas) return;
 
-  const { x, y, scale } = camera.current;
+  const {
+    x,
+    y,
+    scale,
+  } = camera.current;
 
   canvas.style.transform =
     `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
@@ -1600,80 +1613,77 @@ const applyTransform = () => {
   updateScreenSpaceLabels();
 };
 
-  const animateCamera =
-    () => {
-      const current =
-        camera.current;
+const animateCamera = () => {
+  const current =
+    camera.current;
 
-      const target =
-        targetCamera.current;
+  const target =
+    targetCamera.current;
 
-      const ease = 0.28;
+  const ease = 0.28;
 
-      current.x +=
-        (target.x -
-          current.x) *
-        ease;
+  current.x +=
+    (target.x - current.x) *
+    ease;
 
-      current.y +=
-        (target.y -
-          current.y) *
-        ease;
+  current.y +=
+    (target.y - current.y) *
+    ease;
 
-      current.scale +=
-        (target.scale -
-          current.scale) *
-        ease;
+  current.scale +=
+    (target.scale - current.scale) *
+    ease;
 
-      if (
-        Math.abs(
-          target.x -
-            current.x
-        ) < 0.01 &&
-        Math.abs(
-          target.y -
-            current.y
-        ) < 0.01 &&
-        Math.abs(
-          target.scale -
-            current.scale
-        ) < 0.0001
-      ) {
-        current.x =
-          target.x;
+  if (
+    Math.abs(
+      target.x -
+        current.x
+    ) < 0.01 &&
+    Math.abs(
+      target.y -
+        current.y
+    ) < 0.01 &&
+    Math.abs(
+      target.scale -
+        current.scale
+    ) < 0.0001
+  ) {
+    current.x =
+      target.x;
 
-        current.y =
-          target.y;
+    current.y =
+      target.y;
 
-        current.scale =
-          target.scale;
-      }
+    current.scale =
+      target.scale;
+  }
 
-      applyTransform();
+  applyTransform();
 
-      animationFrame.current =
-        requestAnimationFrame(
-          animateCamera
-        );
-    };
+  animationFrame.current =
+    requestAnimationFrame(
+      animateCamera
+    );
+};
 
-  useEffect(() => {
-    animationFrame.current =
-      requestAnimationFrame(
-        animateCamera
+useEffect(() => {
+  animationFrame.current =
+    requestAnimationFrame(
+      animateCamera
+    );
+
+  return () => {
+    if (
+      animationFrame.current !==
+      null
+    ) {
+      cancelAnimationFrame(
+        animationFrame.current
       );
+    }
+  };
+}, []);
 
-    return () => {
-      if (
-        animationFrame.current !==
-        null
-      ) {
-        cancelAnimationFrame(
-          animationFrame.current
-        );
-      }
-    };
-  }, []);
 
   // --------------------------------------------------
   // CANVAS PAN
@@ -1902,6 +1912,53 @@ const handleProjectClassificationsChange = (
         : project
     )
   );
+};
+
+
+// --------------------------------------------------
+// POPUPOVER
+// --------------------------------------------------
+
+const showEditPopover = (
+  projectId: string
+) => {
+  if (!isAdmin) return;
+  if (!unlockedProjects[projectId]) return;
+
+  if (editPopoverCloseTimeout.current) {
+    clearTimeout(
+      editPopoverCloseTimeout.current
+    );
+
+    editPopoverCloseTimeout.current = null;
+  }
+
+  setHoveredEditProject(projectId);
+  setEditingProject(projectId);
+};
+
+const hideEditPopover = () => {
+  if (editPopoverCloseTimeout.current) {
+    clearTimeout(
+      editPopoverCloseTimeout.current
+    );
+  }
+
+  editPopoverCloseTimeout.current =
+    setTimeout(() => {
+      setHoveredEditProject(null);
+      setEditingProject(null);
+    }, 120);
+};
+
+const keepEditPopoverOpen = () => {
+  if (editPopoverCloseTimeout.current) {
+    clearTimeout(
+      editPopoverCloseTimeout.current
+    );
+
+    editPopoverCloseTimeout.current = null;
+  }
 };
 
 
@@ -2844,6 +2901,7 @@ const dy =
     );
   };
 
+
   // --------------------------------------------------
   // PROJECT DRAGGING
   // --------------------------------------------------
@@ -3594,17 +3652,38 @@ onDoubleClick={(e) => {
         onPointerDown={(e) =>
           e.stopPropagation()
         }
+
+        onMouseEnter={() => {
+  if (unlockedProjects[project.id]) {
+    showEditPopover(project.id);
+  }
+}}
+
+onMouseLeave={() => {
+  hideEditPopover();
+}}
+
+
         onClick={(e) => {
   e.stopPropagation();
 
   if (unlockedProjects[project.id]) {
-    setEditingProject(null);
     toggleProjectLock(project.id);
+
+    if (
+      editingProject === project.id
+    ) {
+      setEditingProject(null);
+      setHoveredEditProject(null);
+    }
+
     return;
   }
 
   toggleProjectLock(project.id);
+
   setEditingProject(project.id);
+  setHoveredEditProject(project.id);
 }}
         className={`rounded-full border px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] transition-colors ${
           unlockedProjects[project.id]
@@ -3620,16 +3699,25 @@ onDoubleClick={(e) => {
   </div>
 
 </div>
-{editingProject === project.id && (
+{editingProject === project.id &&
+  hoveredEditProject === project.id && (
+  
   <div
-    className="absolute right-0 top-full z-[999] mt-3 w-[220px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-zinc-900"
-    onPointerDown={(e) => {
-      e.stopPropagation();
-    }}
-    onClick={(e) => {
-      e.stopPropagation();
-    }}
-  >
+  className="absolute left-full top-0 z-[999] ml-3 w-[220px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-zinc-900"
+  onMouseEnter={() => {
+    keepEditPopoverOpen();
+  }}
+  onMouseLeave={() => {
+    hideEditPopover();
+  }}
+  onPointerDown={(e) => {
+    e.stopPropagation();
+  }}
+  onClick={(e) => {
+    e.stopPropagation();
+  }}
+>
+
     <div className="mb-3 text-[8px] uppercase tracking-[0.14em] text-black/30 dark:text-white/30">
       Edit project
     </div>
@@ -3755,6 +3843,7 @@ onDoubleClick={(e) => {
       onClick={(e) => {
         e.stopPropagation();
         setEditingProject(null);
+setHoveredEditProject(null);
       }}
       className="mt-3 w-full border-t border-black/10 pt-2 text-left text-[8px] uppercase tracking-[0.12em] text-black/30 hover:text-black/60 dark:border-white/10 dark:text-white/30 dark:hover:text-white/60"
     >
