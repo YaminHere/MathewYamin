@@ -1,0 +1,15 @@
+{
+  "id": "new-sample",
+  "title": "new sample",
+  "year": 2026,
+  "classifications": [
+    "brand",
+    "product"
+  ],
+  "position": {
+    "x": -734.0518355024991,
+    "y": 223.9855524187081
+  },
+  "scale": 1,
+  "frames": []
+}

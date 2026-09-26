@@ -1,0 +1,15 @@
+{
+  "id": "juice-shop",
+  "title": "juice shop",
+  "year": 2026,
+  "classifications": [
+    "brand",
+    "product"
+  ],
+  "position": {
+    "x": -467.16796730121223,
+    "y": 229.5249080851048
+  },
+  "scale": 1,
+  "frames": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "new-project",
+  "title": "new project",
+  "year": 2026,
+  "classifications": [
+    "brand",
+    "product",
+    "web"
+  ],
+  "position": {
+    "x": -733.2804129492321,
+    "y": 135.68179957798728
+  },
+  "scale": 1,
+  "frames": []
+}

@@ -4,7 +4,8 @@
   "year": 2026,
   "classifications": [
     "brand",
-    "campaigns"
+    "campaigns",
+    "product"
   ],
   "position": {
     "x": 51.10178912353214,

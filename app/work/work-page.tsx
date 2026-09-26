@@ -33,7 +33,7 @@ type Project = {
   title: string;
   year: number;
   classifications: string[];
-    position: {
+  position: {
     x: number;
     y: number;
   };
@@ -638,6 +638,20 @@ export default function WorkPage({
       >
     >({});
 
+
+    const [creatingProject, setCreatingProject] =
+  useState(false);
+
+const [newProjectTitle, setNewProjectTitle] =
+  useState("");
+
+const [newProjectYear, setNewProjectYear] =
+  useState(new Date().getFullYear());
+
+const [newProjectClassifications, setNewProjectClassifications] =
+  useState<string[]>(["brand"]);
+
+
     const [hoveredProjectId, setHoveredProjectId] =
   useState<string | null>(null);
 
@@ -935,106 +949,135 @@ useEffect(() => {
 ]);
 
   // --------------------------------------------------
-  // LOAD PROJECTS
-  // --------------------------------------------------
+// LOAD PROJECTS
+// --------------------------------------------------
 
-  useEffect(() => {
-    const loadProjects =
-      async () => {
-        const loadedProjects =
-          await Promise.all(
-            projectManifest.map(
-              async (projectId) => {
-                const response =
-                  await fetch(
-                    `/work/${projectId}/project.json`
-                  );
+useEffect(() => {
+  const loadProjects = async () => {
+    const projectsResponse =
+      await fetch(
+        "/api/work/projects"
+      );
 
-                if (!response.ok) {
-                  throw new Error(
-                    `Failed to load project: ${projectId}`
-                  );
-                }
+    if (!projectsResponse.ok) {
+      throw new Error(
+        "Failed to load project list"
+      );
+    }
 
-                return response.json() as Promise<Project>;
-              }
-            )
+    const {
+      projects: projectIds,
+    } =
+      await projectsResponse.json();
+
+    const loadedProjects =
+  await Promise.all(
+    projectIds.map(
+      async (projectId: string) => {
+        const response =
+          await fetch(
+            `/work/${projectId}/project.json`
           );
 
-        setProjects(
-          loadedProjects
-        );
-
-        const initialProjectScales =
-  Object.fromEntries(
-    loadedProjects.map((project) => [
-      project.id,
-      project.scale ?? 1,
-    ])
-  );
-
-setProjectScales(initialProjectScales);
-
-        const initialPositions =
-          Object.fromEntries(
-            loadedProjects.map(
-              (project) => [
-                project.id,
-                {
-                  x:
-                    project.position
-                      .x,
-
-                  y:
-                    project.position
-                      .y,
-                },
-              ]
-            )
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load project: ${projectId}`
           );
+        }
 
-        const initialFramePositions =
-  Object.fromEntries(
-    loadedProjects.flatMap((project) =>
-      project.frames.map((frame) => [
-        `${project.id}:${frame.id}`,
-        {
-          x: frame.position.x,
-          y: frame.position.y,
-        },
-      ])
+        return (await response.json()) as Project;
+      }
     )
   );
 
-const initialFrameSizes =
-  Object.fromEntries(
-    loadedProjects.flatMap((project) =>
-      project.frames
-        .filter(
-          (frame) =>
-            frame.width &&
-            frame.height
-        )
-        .map((frame) => [
-          `${project.id}:${frame.id}`,
-          {
-            width: frame.width!,
-            height: frame.height!,
-          },
-        ])
-    )
-  );
-
-setProjectPositions(initialPositions);
-setFramePositions(initialFramePositions);
-setFrameSizes(initialFrameSizes);
-setPhysicsPositions(initialPositions);
-      };
-
-    loadProjects().catch(
-      console.error
+    setProjects(
+      loadedProjects
     );
-  }, []);
+
+    const initialProjectScales =
+      Object.fromEntries(
+        loadedProjects.map(
+          (project) => [
+            project.id,
+            project.scale ?? 1,
+          ]
+        )
+      );
+
+    setProjectScales(
+      initialProjectScales
+    );
+
+    const initialPositions =
+      Object.fromEntries(
+        loadedProjects.map(
+          (project) => [
+            project.id,
+            {
+              x: project.position.x,
+              y: project.position.y,
+            },
+          ]
+        )
+      );
+
+    const initialFramePositions: Record<
+  string,
+  { x: number; y: number }
+> = {};
+
+for (const project of loadedProjects) {
+  for (const frame of project.frames) {
+    initialFramePositions[
+      `${project.id}:${frame.id}`
+    ] = {
+      x: frame.position.x,
+      y: frame.position.y,
+    };
+  }
+}
+
+const initialFrameSizes: Record<
+  string,
+  { width: number; height: number }
+> = {};
+
+for (const project of loadedProjects) {
+  for (const frame of project.frames) {
+    if (
+      frame.width !== undefined &&
+      frame.height !== undefined
+    ) {
+      initialFrameSizes[
+        `${project.id}:${frame.id}`
+      ] = {
+        width: frame.width,
+        height: frame.height,
+      };
+    }
+  }
+}
+    setProjectPositions(
+      initialPositions
+    );
+
+    setFramePositions(
+      initialFramePositions
+    );
+
+    setFrameSizes(
+      initialFrameSizes
+    );
+
+    setPhysicsPositions(
+      initialPositions
+    );
+  };
+
+  loadProjects().catch(
+    console.error
+  );
+}, []);
 
   // --------------------------------------------------
   // RESOLVE ACTIVE COLLAGE COLLISIONS
@@ -2051,6 +2094,172 @@ const handleFramePointerUp = (
   ) {
     e.currentTarget.releasePointerCapture(
       e.pointerId
+    );
+  }
+};
+
+
+
+  const createProject = async () => {
+  if (!isAdmin) return;
+
+  const title = newProjectTitle.trim();
+
+  if (!title) return;
+
+  const projectId = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (!projectId) return;
+
+  console.log("CREATING PROJECT:", {
+    projectId,
+    title,
+    year: newProjectYear,
+    classifications:
+      newProjectClassifications,
+  });
+
+  try {
+    const response = await fetch(
+      "/api/work/create",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          title,
+          year: newProjectYear,
+          classifications:
+            newProjectClassifications,
+        }),
+      }
+    );
+
+    const result =
+      await response.json();
+
+    console.log("CREATE RESPONSE:", {
+      status: response.status,
+      result,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+          `Create failed with status ${response.status}`
+      );
+    }
+
+    const createdProject =
+      result.project;
+
+    // ---------------------------------------------
+    // PLACE NEW PROJECT AT CURRENT VIEWPORT CENTER
+    // ---------------------------------------------
+
+    const viewport =
+      viewportRef.current;
+
+    let projectPosition =
+      createdProject.position;
+
+    if (viewport) {
+      const rect =
+        viewport.getBoundingClientRect();
+
+      const viewportCenterX =
+        rect.width / 2;
+
+      const viewportCenterY =
+        rect.height / 2;
+
+      const scale =
+        camera.current.scale;
+
+      const worldCenterX =
+        (viewportCenterX -
+          camera.current.x) /
+        scale;
+
+      const worldCenterY =
+        (viewportCenterY -
+          camera.current.y) /
+        scale;
+
+      projectPosition = {
+        x: worldCenterX - 150,
+        y: worldCenterY - 100,
+      };
+    }
+
+    const project = {
+      ...createdProject,
+      position: projectPosition,
+    };
+
+    console.log(
+      "PROJECT ADDED TO STATE:",
+      project
+    );
+
+    // ---------------------------------------------
+    // ADD PROJECT TO STATE
+    // ---------------------------------------------
+
+    setProjects((current) => [
+      ...current,
+      project,
+    ]);
+
+    setProjectPositions((current) => ({
+      ...current,
+      [project.id]:
+        project.position,
+    }));
+
+    setProjectScales((current) => ({
+      ...current,
+      [project.id]:
+        project.scale ?? 1,
+    }));
+
+    setProjectZIndexes((current) => ({
+      ...current,
+      [project.id]:
+        Math.max(
+          0,
+          ...Object.values(current)
+        ) + 1,
+    }));
+
+    // ---------------------------------------------
+    // RESET CREATE FORM
+    // ---------------------------------------------
+
+    setCreatingProject(false);
+    setNewProjectTitle("");
+
+    setNewProjectYear(
+      new Date().getFullYear()
+    );
+
+    setNewProjectClassifications([
+      "brand",
+    ]);
+
+    console.log(
+      "PROJECT CREATED SUCCESSFULLY:",
+      project
+    );
+  } catch (error) {
+    console.error(
+      "CREATE PROJECT ERROR:",
+      error
     );
   }
 };
@@ -3200,6 +3409,19 @@ const dy =
             ALL WORK
           </button>
 
+
+          {isAdmin && (
+  <button
+    type="button"
+    onClick={() => {
+      setCreatingProject(true);
+    }}
+    className="transition-opacity hover:opacity-50"
+  >
+    NEW PROJECT
+  </button>
+)}
+
 {isAdmin && (
 
           <button
@@ -3376,7 +3598,6 @@ ref={(element) => {
                     }}
                   >
 
-                    
 
                     {/* PROJECT FRAMES */}
 
@@ -3448,6 +3669,10 @@ onDoubleClick={(e) => {
       }
     >
       
+
+
+
+  
 
       {/* FRAME / MEDIA */}
 
@@ -3571,11 +3796,173 @@ onDoubleClick={(e) => {
 
          </div>
 
-        {/* SCREEN-SPACE LABELS */}
+
+{/* SCREEN-SPACE LABELS */}
 <div
   ref={screenLabelLayerRef}
   className="pointer-events-none absolute inset-0 z-40"
 >
+
+
+
+{/* NEW PROJECT */}
+
+      {isAdmin && creatingProject && (
+        <div
+          className="pointer-events-auto absolute right-6 top-16 z-[1000] w-[220px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-zinc-900"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <div className="mb-3 text-[8px] uppercase tracking-[0.14em] text-black/30 dark:text-white/30">
+            New project
+          </div>
+
+          {/* TITLE */}
+          <div className="mb-3">
+            <label className="mb-1 block text-[7px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30">
+              Title
+            </label>
+
+            <input
+              autoFocus
+              value={newProjectTitle}
+              onChange={(e) =>
+                setNewProjectTitle(
+                  e.target.value
+                )
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  createProject();
+                }
+
+                if (e.key === "Escape") {
+                  setCreatingProject(false);
+                }
+              }}
+              className="w-full border-b border-black/10 bg-transparent px-0 py-1 text-[10px] uppercase tracking-[0.1em] text-black/70 outline-none dark:border-white/10 dark:text-white/70"
+            />
+          </div>
+
+          {/* YEAR */}
+          <div className="mb-4">
+            <label className="mb-1 block text-[7px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30">
+              Year
+            </label>
+
+            <input
+              type="number"
+              value={newProjectYear}
+              onChange={(e) => {
+                const value =
+                  Number.parseInt(
+                    e.target.value,
+                    10
+                  );
+
+                if (Number.isNaN(value)) {
+                  return;
+                }
+
+                setNewProjectYear(value);
+              }}
+              className="w-full border-b border-black/10 bg-transparent px-0 py-1 text-[10px] text-black/70 outline-none dark:border-white/10 dark:text-white/70"
+            />
+          </div>
+
+          {/* CLASSIFICATIONS */}
+          <div>
+            <label className="mb-2 block text-[7px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30">
+              Classifications
+            </label>
+
+            <div className="space-y-1">
+              {CLASSIFICATIONS.map(
+                (classification) => {
+                  const selected =
+                    newProjectClassifications.includes(
+                      classification
+                    );
+
+                  return (
+                    <label
+                      key={classification}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 text-[8px] uppercase tracking-[0.12em] text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) => {
+                          if (
+                            e.target.checked
+                          ) {
+                            setNewProjectClassifications(
+                              (current) => [
+                                ...current,
+                                classification,
+                              ]
+                            );
+
+                            return;
+                          }
+
+                          if (
+                            newProjectClassifications.length ===
+                            1
+                          ) {
+                            return;
+                          }
+
+                          setNewProjectClassifications(
+                            (current) =>
+                              current.filter(
+                                (item) =>
+                                  item !==
+                                  classification
+                              )
+                          );
+                        }}
+                      />
+
+                      {classification}
+                    </label>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="mt-3 flex items-center justify-between border-t border-black/10 pt-2 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() =>
+                setCreatingProject(false)
+              }
+              className="text-[8px] uppercase tracking-[0.12em] text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={createProject}
+              disabled={
+                !newProjectTitle.trim()
+              }
+              className="text-[8px] uppercase tracking-[0.12em] text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      )}
+
+
 
   {/* PROJECT HEADERS */}
 {projects.map((project) => (
