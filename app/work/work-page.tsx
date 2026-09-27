@@ -642,6 +642,9 @@ export default function WorkPage({
     const [creatingProject, setCreatingProject] =
   useState(false);
 
+const [isSaving, setIsSaving] =
+  useState(false);
+
 const [newProjectTitle, setNewProjectTitle] =
   useState("");
 
@@ -661,8 +664,14 @@ const [newProjectClassifications, setNewProjectClassifications] =
   const [editingFrameTitle, setEditingFrameTitle] =
   useState<string | null>(null);
 
+  const [selectingFrameMedia, setSelectingFrameMedia] =
+  useState<string | null>(null);
+
   const [hoveredEditProject, setHoveredEditProject] =
   useState<string | null>(null);
+
+  const frameFileInputRef =
+  useRef<HTMLInputElement | null>(null);
   
 
   const [projectZIndexes, setProjectZIndexes] =
@@ -677,6 +686,14 @@ const projectScalesRef =
   useRef<Record<string, number>>({});
 const framePositionsRef =
   useRef<Record<string, { x: number; y: number }>>({});
+
+  const projectZIndexesRef =
+  useRef<Record<string, number>>({});
+
+  const saveInProgress =
+  useRef(false);
+const savedProjectsRef =
+  useRef<Record<string, Project>>({});
 
   const frameLabelRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
@@ -699,11 +716,6 @@ const framePositionsRef =
   const frameElementRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
 
-  
-  
-
-  const projectZIndexesRef =
-  useRef<Record<string, number>>({});
 
 
   projectsRef.current = projects;
@@ -809,7 +821,214 @@ if (!isAdmin) {
     );
   };
 
-  const saveProject = async (projectId: string) => {
+
+const deleteProject = async (
+  projectId: string
+) => {
+  if (!isAdmin) return;
+
+  if (!unlockedProjects[projectId]) {
+    return;
+  }
+
+  const project =
+    projectsRef.current.find(
+      (project) =>
+        project.id === projectId
+    );
+
+  if (!project) {
+    return;
+  }
+
+  const confirmed =
+    window.confirm(
+      `Delete "${project.title}" and all of its frames? This cannot be undone.`
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const response =
+      await fetch(
+        "/api/work/delete",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            projectId,
+            type: "project",
+          }),
+        }
+      );
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+          "Failed to delete project"
+      );
+    }
+
+    // Remove project
+    setProjects((current) =>
+      current.filter(
+        (project) =>
+          project.id !== projectId
+      )
+    );
+
+    // Remove project position
+    setProjectPositions((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[projectId];
+
+      return next;
+    });
+
+    // Remove physics position
+    setPhysicsPositions((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[projectId];
+
+      return next;
+    });
+
+    // Remove project scale
+    setProjectScales((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[projectId];
+
+      return next;
+    });
+
+    // Remove frame positions
+    setFramePositions((current) => {
+      const next = {
+        ...current,
+      };
+
+      project.frames.forEach((frame) => {
+        delete next[
+          `${projectId}:${frame.id}`
+        ];
+      });
+
+      return next;
+    });
+
+    // Remove frame sizes
+    setFrameSizes((current) => {
+      const next = {
+        ...current,
+      };
+
+      project.frames.forEach((frame) => {
+        delete next[
+          `${projectId}:${frame.id}`
+        ];
+      });
+
+      return next;
+    });
+
+    // Remove z-index
+    setProjectZIndexes((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[projectId];
+
+      return next;
+    });
+
+    // Remove unlock state
+    setUnlockedProjects((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[projectId];
+
+      return next;
+    });
+
+    // Remove refs
+    delete projectElementRefs.current[
+      projectId
+    ];
+
+    delete projectHeaderRefs.current[
+      projectId
+    ];
+
+    delete projectTitleRefs.current[
+      projectId
+    ];
+
+    delete projectBoundaryRefs.current[
+      projectId
+    ];
+
+    // Remove saved snapshot
+    delete savedProjectsRef.current[
+      projectId
+    ];
+
+    // Remove refs used by save/physics
+    delete projectPositionsRef.current[
+      projectId
+    ];
+
+    delete physicsPositionsRef.current[
+      projectId
+    ];
+
+    delete projectScalesRef.current[
+      projectId
+    ];
+
+    delete projectZIndexesRef.current[
+      projectId
+    ];
+
+    console.log(
+      "PROJECT DELETED:",
+      projectId
+    );
+  } catch (error) {
+    console.error(
+      "PROJECT DELETE ERROR:",
+      error
+    );
+  }
+};
+
+
+  const saveProject = async (
+  projectId: string,
+  savedPosition?: {
+    x: number;
+    y: number;
+  }
+) => {
   const project = projects.find(
     (project) => project.id === projectId
   );
@@ -817,8 +1036,11 @@ if (!isAdmin) {
   if (!project) return;
 
   const position =
-    projectPositions[projectId] ??
-    project.position;
+  savedPosition ??
+  projectPositionsRef.current[
+    projectId
+  ] ??
+  project.position;
 
   const frames = project.frames.map((frame) => {
     const key = `${projectId}:${frame.id}`;
@@ -833,6 +1055,8 @@ if (!isAdmin) {
     return {
   id: frame.id,
   title: frame.title,
+  type: frame.type,
+  src: frame.src,
   position: framePosition,
   ...(frameSize
     ? {
@@ -842,6 +1066,15 @@ if (!isAdmin) {
     : {}),
 };
   });
+
+
+  console.log(
+  "SAVING PROJECT POSITION:",
+  {
+    projectId,
+    position,
+  }
+);
 
   try {
     const response = await fetch(
@@ -888,11 +1121,190 @@ console.log(
 };
 
 const saveAllProjects = async () => {
-  for (const project of projects) {
-    await saveProject(project.id);
+  if (!isAdmin) return;
+
+  if (saveInProgress.current) {
+    console.log(
+      "SAVE ALREADY IN PROGRESS"
+    );
+    return;
+  }
+
+  saveInProgress.current = true;
+  setIsSaving(true);
+
+  console.log(
+    "========== SAVE START =========="
+  );
+
+  try {
+    const projectsToSave =
+      projectsRef.current
+        .map((project) => {
+          const position =
+            projectPositionsRef.current[
+              project.id
+            ] ??
+            project.position;
+
+          const savedProject =
+            savedProjectsRef.current[
+              project.id
+            ];
+
+          const positionChanged =
+            !savedProject ||
+            position.x !==
+              savedProject.position.x ||
+            position.y !==
+              savedProject.position.y;
+
+          const scaleChanged =
+  !savedProject ||
+  (projectScalesRef.current[
+    project.id
+  ] ?? 1) !==
+    (savedProject.scale ?? 1);
+
+const framesChanged =
+  !savedProject ||
+  project.frames.length !==
+    savedProject.frames.length ||
+  project.frames.some((frame) => {
+    const savedFrame =
+      savedProject.frames.find(
+        (item) =>
+          item.id === frame.id
+      );
+
+    if (!savedFrame) {
+      return true;
+    }
+
+    const frameKey =
+      `${project.id}:${frame.id}`;
+
+    const currentPosition =
+      framePositionsRef.current[
+        frameKey
+      ] ?? frame.position;
+
+    const currentSize =
+      frameSizes[frameKey];
+
+    const savedPosition =
+      savedFrame.position;
+
+    const positionChanged =
+      currentPosition.x !==
+        savedPosition.x ||
+      currentPosition.y !==
+        savedPosition.y;
+
+    const sizeChanged =
+      currentSize &&
+      (
+        currentSize.width !==
+          savedFrame.width ||
+        currentSize.height !==
+          savedFrame.height
+      );
+
+    const contentChanged =
+      frame.title !==
+        savedFrame.title ||
+      frame.type !==
+        savedFrame.type ||
+      frame.src !==
+        savedFrame.src;
+
+    return (
+      positionChanged ||
+      !!sizeChanged ||
+      contentChanged
+    );
+  });
+
+return {
+  project,
+  position,
+  positionChanged,
+  scaleChanged,
+  framesChanged,
+};
+        })
+        .filter(
+  ({
+    positionChanged,
+    scaleChanged,
+    framesChanged,
+  }) =>
+    positionChanged ||
+    scaleChanged ||
+    framesChanged
+);
+
+    console.log(
+      "PROJECTS TO SAVE:",
+      projectsToSave.map(
+        ({
+          project,
+          position,
+          positionChanged,
+          scaleChanged,
+          framesChanged,
+        }) => ({
+          id: project.id,
+          position,
+          positionChanged,
+          scaleChanged,
+          framesChanged,
+        })
+      )
+    );
+
+    for (
+      const {
+        project,
+        position,
+      } of projectsToSave
+    ) {
+      await saveProject(
+        project.id,
+        position
+      );
+    }
+
+    projectsToSave.forEach(
+      ({ project, position }) => {
+        savedProjectsRef.current[
+          project.id
+        ] = {
+          ...structuredClone(project),
+          position: {
+            ...position,
+          },
+          scale:
+            projectScalesRef.current[
+              project.id
+            ] ?? 1,
+        };
+      }
+    );
+
+    console.log(
+      "========== SAVE COMPLETE =========="
+    );
+  } catch (error) {
+    console.error(
+      "SAVE ALL ERROR:",
+      error
+    );
+  } finally {
+    saveInProgress.current = false;
+    setIsSaving(false);
   }
 };
-
 
 useEffect(() => {
   const observers: ResizeObserver[] = [];
@@ -993,6 +1405,14 @@ useEffect(() => {
     setProjects(
       loadedProjects
     );
+
+    savedProjectsRef.current =
+  Object.fromEntries(
+    loadedProjects.map((project) => [
+      project.id,
+      structuredClone(project),
+    ])
+  );
 
     const initialProjectScales =
       Object.fromEntries(
@@ -2005,6 +2425,162 @@ const keepEditPopoverOpen = () => {
 };
 
 
+
+const createFrame = (
+  projectId: string
+) => {
+  if (!isAdmin) return;
+
+  if (!unlockedProjects[projectId]) {
+    return;
+  }
+
+  setSelectingFrameMedia(
+    `new:${projectId}`
+  );
+
+  frameFileInputRef.current?.click();
+};
+
+
+const deleteFrame = async (
+  projectId: string,
+  frameId: string
+) => {
+  if (!isAdmin) return;
+
+  if (!unlockedProjects[projectId]) {
+    return;
+  }
+
+  const project =
+    projectsRef.current.find(
+      (project) =>
+        project.id === projectId
+    );
+
+  const frame =
+    project?.frames.find(
+      (frame) =>
+        frame.id === frameId
+    );
+
+    console.log(
+  "FRAME DELETE DATA:",
+  {
+    projectId,
+    frameId,
+    frameSrc: frame?.src,
+    frameType: frame?.type,
+  }
+);
+
+  if (!project || !frame) {
+    return;
+  }
+
+  
+  try {
+    
+    const response =
+      await fetch(
+        "/api/work/delete",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            projectId,
+            type: "frame",
+            src: frame.src,
+          }),
+        }
+      );
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+  console.error(
+    "FRAME DELETE FAILED:",
+    result
+  );
+
+  throw new Error(
+    result.error ||
+      "Failed to delete frame"
+  );
+}
+
+    // Remove frame from project
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === projectId
+          ? {
+              ...project,
+              frames:
+                project.frames.filter(
+                  (frame) =>
+                    frame.id !== frameId
+                ),
+            }
+          : project
+      )
+    );
+
+    const frameKey =
+      `${projectId}:${frameId}`;
+
+    // Remove transient frame state
+    setFramePositions((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[frameKey];
+
+      return next;
+    });
+
+    setFrameSizes((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[frameKey];
+
+      return next;
+    });
+
+    delete frameElementRefs.current[
+      frameKey
+    ];
+
+    delete frameLabelRefs.current[
+      frameKey
+    ];
+
+    if (
+      editingFrameTitle ===
+      frameKey
+    ) {
+      setEditingFrameTitle(null);
+    }
+
+    console.log(
+      "FRAME DELETED:",
+      frame.src
+    );
+  } catch (error) {
+    console.error(
+      "FRAME DELETE ERROR:",
+      error
+    );
+  }
+};
+
 // --------------------------------------------------
 // FRAME DRAGGING
 // --------------------------------------------------
@@ -2103,50 +2679,113 @@ const handleFramePointerUp = (
   const createProject = async () => {
   if (!isAdmin) return;
 
-  const title = newProjectTitle.trim();
+  const title =
+    newProjectTitle.trim();
 
   if (!title) return;
 
-  const projectId = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const projectId =
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
 
   if (!projectId) return;
 
-  console.log("CREATING PROJECT:", {
-    projectId,
-    title,
-    year: newProjectYear,
-    classifications:
-      newProjectClassifications,
-  });
+  // ---------------------------------------------
+  // CALCULATE POSITION BEFORE CREATING PROJECT
+  // ---------------------------------------------
+
+  const viewport =
+    viewportRef.current;
+
+  let projectPosition = {
+    x: 0,
+    y: 0,
+  };
+
+  if (viewport) {
+    const rect =
+      viewport.getBoundingClientRect();
+
+    const viewportCenterX =
+      rect.width / 2;
+
+    const viewportCenterY =
+      rect.height / 2;
+
+    const scale =
+      camera.current.scale;
+
+    const worldCenterX =
+      (viewportCenterX -
+        camera.current.x) /
+      scale;
+
+    const worldCenterY =
+      (viewportCenterY -
+        camera.current.y) /
+      scale;
+
+    projectPosition = {
+      x:
+        worldCenterX - 150,
+
+      y:
+        worldCenterY - 100,
+    };
+  }
+
+  console.log(
+    "CREATING PROJECT:",
+    {
+      projectId,
+      title,
+      year: newProjectYear,
+      classifications:
+        newProjectClassifications,
+      position:
+        projectPosition,
+    }
+  );
 
   try {
-    const response = await fetch(
-      "/api/work/create",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          projectId,
-          title,
-          year: newProjectYear,
-          classifications:
-            newProjectClassifications,
-        }),
-      }
-    );
+    // ---------------------------------------------
+    // CREATE PROJECT ON SERVER
+    // ---------------------------------------------
+
+    const response =
+      await fetch(
+        "/api/work/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+  projectId,
+  title,
+  year: newProjectYear,
+  classifications:
+    newProjectClassifications,
+  position:
+    projectPosition,
+}),
+        }
+      );
 
     const result =
       await response.json();
 
-    console.log("CREATE RESPONSE:", {
-      status: response.status,
-      result,
-    });
+    console.log(
+      "CREATE RESPONSE:",
+      {
+        status:
+          response.status,
+        result,
+      }
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -2159,47 +2798,14 @@ const handleFramePointerUp = (
       result.project;
 
     // ---------------------------------------------
-    // PLACE NEW PROJECT AT CURRENT VIEWPORT CENTER
+    // USE VIEWPORT POSITION
     // ---------------------------------------------
-
-    const viewport =
-      viewportRef.current;
-
-    let projectPosition =
-      createdProject.position;
-
-    if (viewport) {
-      const rect =
-        viewport.getBoundingClientRect();
-
-      const viewportCenterX =
-        rect.width / 2;
-
-      const viewportCenterY =
-        rect.height / 2;
-
-      const scale =
-        camera.current.scale;
-
-      const worldCenterX =
-        (viewportCenterX -
-          camera.current.x) /
-        scale;
-
-      const worldCenterY =
-        (viewportCenterY -
-          camera.current.y) /
-        scale;
-
-      projectPosition = {
-        x: worldCenterX - 150,
-        y: worldCenterY - 100,
-      };
-    }
 
     const project = {
       ...createdProject,
-      position: projectPosition,
+
+      position:
+        projectPosition,
     };
 
     console.log(
@@ -2208,40 +2814,81 @@ const handleFramePointerUp = (
     );
 
     // ---------------------------------------------
-    // ADD PROJECT TO STATE
+    // UPDATE ALL POSITION SOURCES
     // ---------------------------------------------
 
-    setProjects((current) => [
-      ...current,
-      project,
-    ]);
+    projectPositionsRef.current = {
+      ...projectPositionsRef.current,
 
-    setProjectPositions((current) => ({
-      ...current,
       [project.id]:
         project.position,
-    }));
+    };
 
-    setProjectScales((current) => ({
-      ...current,
-      [project.id]:
-        project.scale ?? 1,
-    }));
+    physicsPositionsRef.current = {
+      ...physicsPositionsRef.current,
 
-    setProjectZIndexes((current) => ({
-      ...current,
       [project.id]:
-        Math.max(
-          0,
-          ...Object.values(current)
-        ) + 1,
-    }));
+        project.position,
+    };
+
+    // ---------------------------------------------
+    // ADD PROJECT
+    // ---------------------------------------------
+
+    setProjects(
+      (current) => [
+        ...current,
+        project,
+      ]
+    );
+
+    setProjectPositions(
+      (current) => ({
+        ...current,
+
+        [project.id]:
+          project.position,
+      })
+    );
+
+    setPhysicsPositions(
+      (current) => ({
+        ...current,
+
+        [project.id]:
+          project.position,
+      })
+    );
+
+    setProjectScales(
+      (current) => ({
+        ...current,
+
+        [project.id]:
+          project.scale ?? 1,
+      })
+    );
+
+    setProjectZIndexes(
+      (current) => ({
+        ...current,
+
+        [project.id]:
+          Math.max(
+            0,
+            ...Object.values(
+              current
+            )
+          ) + 1,
+      })
+    );
 
     // ---------------------------------------------
     // RESET CREATE FORM
     // ---------------------------------------------
 
     setCreatingProject(false);
+
     setNewProjectTitle("");
 
     setNewProjectYear(
@@ -2428,8 +3075,8 @@ const dy =
   // --------------------------------------------------
 
   const handleWheel = (
-    e: WheelEvent<HTMLDivElement>
-  ) => {
+  e: globalThis.WheelEvent
+) => {
     e.preventDefault();
 
     const viewport =
@@ -2499,6 +3146,38 @@ const dy =
     targetCamera.current.scale =
       nextScale;
   };
+
+
+// --------------------------------------------------
+// MOUSE WHEEL EVENT LISTENER
+// --------------------------------------------------
+
+useEffect(() => {
+  const viewport =
+    viewportRef.current;
+
+  if (!viewport) return;
+
+  const wheelHandler:
+    EventListener = (event) => {
+      handleWheel(
+        event as globalThis.WheelEvent
+      );
+    };
+
+  viewport.addEventListener(
+    "wheel",
+    wheelHandler,
+    { passive: false }
+  );
+
+  return () => {
+    viewport.removeEventListener(
+      "wheel",
+      wheelHandler
+    );
+  };
+}, []);
 
   // --------------------------------------------------
   // BUTTON ZOOM
@@ -3203,53 +3882,67 @@ const dy =
     
 
   const handleProjectPointerMove =
-    (
-      e: PointerEvent<HTMLDivElement>
-    ) => {
-      const drag =
-        projectDrag.current;
+  (
+    e: PointerEvent<HTMLDivElement>
+  ) => {
+    const drag =
+      projectDrag.current;
 
-      if (!drag) return;
+    if (!drag) return;
 
-      const scale =
-        camera.current.scale;
+    const scale =
+      camera.current.scale;
 
-      const dx =
-        (e.clientX -
-          drag.startX) /
-        scale;
+    const dx =
+      (e.clientX -
+        drag.startX) /
+      scale;
 
-      const dy =
-        (e.clientY -
-          drag.startY) /
-        scale;
+    const dy =
+      (e.clientY -
+        drag.startY) /
+      scale;
 
-      const nextPosition = {
-        x:
-          drag.projectX +
-          dx,
+    const nextPosition = {
+      x:
+        drag.projectX +
+        dx,
 
-        y:
-          drag.projectY +
-          dy,
-      };
-
-      setPhysicsPositions(
-        (current) => ({
-          ...current,
-          [drag.id]:
-            nextPosition,
-        })
-      );
-
-      setProjectPositions(
-        (current) => ({
-          ...current,
-          [drag.id]:
-            nextPosition,
-        })
-      );
+      y:
+        drag.projectY +
+        dy,
     };
+
+    // Keep the live ref in sync immediately.
+    projectPositionsRef.current = {
+      ...projectPositionsRef.current,
+      [drag.id]:
+        nextPosition,
+    };
+
+    // Keep physics position in sync too.
+    physicsPositionsRef.current = {
+      ...physicsPositionsRef.current,
+      [drag.id]:
+        nextPosition,
+    };
+
+    setPhysicsPositions(
+      (current) => ({
+        ...current,
+        [drag.id]:
+          nextPosition,
+      })
+    );
+
+    setProjectPositions(
+      (current) => ({
+        ...current,
+        [drag.id]:
+          nextPosition,
+      })
+    );
+  };
 
   const handleProjectPointerUp =
     (
@@ -3425,10 +4118,14 @@ const dy =
 {isAdmin && (
 
           <button
+  type="button"
   onClick={saveAllProjects}
-  className="transition-opacity hover:opacity-50"
+  disabled={isSaving}
+  className="transition-opacity hover:opacity-50 disabled:cursor-not-allowed disabled:opacity-30"
 >
-  SAVE
+  {isSaving
+    ? "SAVING..."
+    : "SAVE"}
 </button>
 )}
 
@@ -3481,9 +4178,6 @@ const dy =
         onPointerCancel={
           handlePointerUp
         }
-        onWheel={
-          handleWheel
-        }
       >
 
         {/* CANVAS */}
@@ -3499,7 +4193,10 @@ const dy =
             transformOrigin:
               "0 0",
           }}
+          
         >
+
+
 
           {/* PROJECTS */}
 
@@ -3624,6 +4321,8 @@ ref={(element) => {
   const isUnlocked =
     unlockedProjects[project.id];
 
+
+
   return (
     <div
       key={frame.id}
@@ -3682,7 +4381,8 @@ onDoubleClick={(e) => {
     width: frameSize.width,
   }}
 >
-  {frame.type === "video" ? (
+  {frame.src && (
+  frame.type === "video" ? (
     <video
       src={frame.src}
       className="block h-auto w-full rounded-xl"
@@ -3712,7 +4412,9 @@ onDoubleClick={(e) => {
         )
       }
     />
+  )
   )}
+
 
   {/* RESIZE HANDLE */}
 
@@ -3749,10 +4451,45 @@ onDoubleClick={(e) => {
       aria-label={`Resize ${frame.title}`}
     />
   )}
+
+  {/* DELETE FRAME */}
+
+{isUnlocked && isAdmin && (
+  <button
+    type="button"
+    className="absolute right-[-8px] top-[-8px] z-30 flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] leading-none text-black/60 shadow-sm hover:text-black dark:border-white/10 dark:bg-zinc-800 dark:text-white/60 dark:hover:text-white"
+    style={{
+      transform: `scale(${
+        1 /
+        (projectScale *
+          camera.current.scale)
+      })`,
+      transformOrigin: "center",
+    }}
+    onPointerDown={(e) => {
+      e.stopPropagation();
+    }}
+    onClick={(e) => {
+      e.stopPropagation();
+
+      deleteFrame(
+        project.id,
+        frame.id
+      );
+    }}
+    aria-label={`Delete ${frame.title}`}
+  >
+    ×
+  </button>
+)}
+
 </div>
     </div>
   );
+  
 })}
+
+
 
 {unlockedProjects[project.id] && (
   <div
@@ -4031,47 +4768,45 @@ onDoubleClick={(e) => {
   </span>
 
 
-  {/* EDIT — FIXED, RIGHT ALIGNED */}
-  <div className="ml-2 flex shrink-0 items-center gap-1">
-    {isAdmin && (
+  {/* EDIT + DELETE — FIXED, RIGHT ALIGNED */}
+<div className="ml-2 flex shrink-0 items-center gap-1">
+  {isAdmin && (
+    <>
+      {/* EDIT / LOCK */}
       <button
         type="button"
         onPointerDown={(e) =>
           e.stopPropagation()
         }
-
         onMouseEnter={() => {
-  if (unlockedProjects[project.id]) {
-    showEditPopover(project.id);
-  }
-}}
-
-onMouseLeave={() => {
-  hideEditPopover();
-}}
-
-
+          if (unlockedProjects[project.id]) {
+            showEditPopover(project.id);
+          }
+        }}
+        onMouseLeave={() => {
+          hideEditPopover();
+        }}
         onClick={(e) => {
-  e.stopPropagation();
+          e.stopPropagation();
 
-  if (unlockedProjects[project.id]) {
-    toggleProjectLock(project.id);
+          if (unlockedProjects[project.id]) {
+            toggleProjectLock(project.id);
 
-    if (
-      editingProject === project.id
-    ) {
-      setEditingProject(null);
-      setHoveredEditProject(null);
-    }
+            if (
+              editingProject === project.id
+            ) {
+              setEditingProject(null);
+              setHoveredEditProject(null);
+            }
 
-    return;
-  }
+            return;
+          }
 
-  toggleProjectLock(project.id);
+          toggleProjectLock(project.id);
 
-  setEditingProject(project.id);
-  setHoveredEditProject(project.id);
-}}
+          setEditingProject(project.id);
+          setHoveredEditProject(project.id);
+        }}
         className={`rounded-full border px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] transition-colors ${
           unlockedProjects[project.id]
             ? "border-red-500 bg-red-500 text-white hover:bg-red-600"
@@ -4082,8 +4817,10 @@ onMouseLeave={() => {
           ? "Lock"
           : "Edit"}
       </button>
-    )}
-  </div>
+
+    </>
+  )}
+</div>
 
 </div>
 {editingProject === project.id &&
@@ -4105,15 +4842,36 @@ onMouseLeave={() => {
   }}
 >
 
-    <div className="mb-3 text-[8px] uppercase tracking-[0.14em] text-black/30 dark:text-white/30">
-      Edit project
-    </div>
+    <div className="mb-3 flex items-center justify-between">
+  <div className="text-[8px] uppercase tracking-[0.14em] text-black/30 dark:text-white/30">
+    Edit project
+  </div>
+
+  {/* DELETE PROJECT */}
+  {unlockedProjects[project.id] && (
+    <button
+      type="button"
+      onPointerDown={(e) =>
+        e.stopPropagation()
+      }
+      onClick={(e) => {
+        e.stopPropagation();
+        deleteProject(project.id);
+      }}
+      className="rounded-full border border-black/10 bg-white/80 px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] text-black/50 transition-colors hover:border-red-500 hover:bg-red-500 hover:text-white dark:border-white/10 dark:bg-zinc-900/80 dark:text-white/50 dark:hover:border-red-500 dark:hover:bg-red-500 dark:hover:text-white"
+    >
+      Delete
+    </button>
+  )}
+</div>
 
     {/* TITLE */}
     <div className="mb-3">
       <label className="mb-1 block text-[7px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30">
         Title
       </label>
+
+      
 
       <input
         autoFocus
@@ -4224,6 +4982,18 @@ onMouseLeave={() => {
       </div>
     </div>
 
+
+    <button
+  type="button"
+  onClick={(e) => {
+    e.stopPropagation();
+    createFrame(project.id);
+  }}
+  className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-left text-xs transition-opacity hover:opacity-60 dark:border-white/10"
+>
+  + FRAME
+</button>
+
     {/* DONE */}
     <button
       type="button"
@@ -4236,6 +5006,8 @@ setHoveredEditProject(null);
     >
       Done
     </button>
+
+    
   </div>
 )}
   </div>
@@ -4346,9 +5118,9 @@ setHoveredEditProject(null);
 
       </div>
 
-      {/* MINIMAP */}
+            {/* MINIMAP */}
 
-      <div className="fixed bottom-6 left-6 z-50 hidden h-28 w-44 overflow-hidden rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70 p-2 backdrop-blur-md md:block">
+      <div className="fixed bottom-6 left-6 z-50 hidden h-28 w-44 overflow-hidden rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70 p-2 backdrop-blur-md">
 
         <div className="relative h-full w-full">
 
@@ -4365,29 +5137,256 @@ setHoveredEditProject(null);
 
               return (
                 <div
-                  key={
-                    project.id
-                  }
+                  key={project.id}
                   className="absolute h-6 w-10 rounded bg-black/10 dark:bg-white/10"
                   style={{
                     left:
-                      position.x /
-                      25,
-
+                      position.x / 25,
                     top:
-                      position.y /
-                      25,
+                      position.y / 25,
                   }}
                 />
               );
             }
           )}
 
-          <div className="absolute left-2 top-2 h-16 w-24 rounded border border-black/60 dark:border-white/60"/>
+          <div className="absolute left-2 top-2 h-16 w-24 rounded border border-black/60 dark:border-white/60" />
 
         </div>
 
       </div>
+
+
+      {/* HIDDEN FRAME MEDIA INPUT */}
+
+      <input
+  ref={frameFileInputRef}
+  id="frame-file-input"
+  type="file"
+  accept="image/*,video/*,.gif,.pdf"
+  style={{
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0,
+    pointerEvents: "none",
+  }}
+  onChange={async (e) => {
+  const file = e.target.files?.[0];
+  const input = e.currentTarget;
+
+  if (!file) {
+    setSelectingFrameMedia(null);
+    return;
+  }
+
+  const selection =
+    selectingFrameMedia;
+
+  if (!selection) {
+    input.value = "";
+    return;
+  }
+
+  let type: ProjectFrame["type"];
+
+  if (file.type === "application/pdf") {
+    type = "pdf";
+  } else if (
+    file.type.startsWith("video/")
+  ) {
+    type = "video";
+  } else if (
+    file.type === "image/gif" ||
+    file.name
+      .toLowerCase()
+      .endsWith(".gif")
+  ) {
+    type = "gif";
+  } else if (
+    file.type.startsWith("image/")
+  ) {
+    type = "image";
+  } else {
+    console.error(
+      "Unsupported file type:",
+      file.type
+    );
+
+    setSelectingFrameMedia(null);
+    input.value = "";
+    return;
+  }
+
+  const projectId =
+    selection.startsWith("new:")
+      ? selection.slice(4)
+      : selection.split(":")[0];
+
+  try {
+    const formData =
+      new FormData();
+
+    formData.append(
+      "projectId",
+      projectId
+    );
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const response =
+      await fetch(
+        "/api/work/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+          "Upload failed"
+      );
+    }
+
+    const publicUrl =
+      result.publicUrl;
+
+    if (
+      typeof publicUrl !==
+      "string"
+    ) {
+      throw new Error(
+        "Upload did not return a file URL"
+      );
+    }
+
+    // CREATE NEW FRAME
+    if (
+      selection.startsWith("new:")
+    ) {
+      const project =
+        projectsRef.current.find(
+          (project) =>
+            project.id === projectId
+        );
+
+      if (!project) {
+        throw new Error(
+          "Project not found"
+        );
+      }
+
+      const frameId =
+        `frame-${Date.now()}`;
+
+      const newFrame: ProjectFrame = {
+        id: frameId,
+        title: file.name,
+        type,
+        src: publicUrl,
+        position: {
+          x: PROJECT_PADDING,
+          y:
+            PROJECT_PADDING +
+            project.frames.length *
+              40,
+        },
+        width: 420,
+        height: 300,
+      };
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === projectId
+            ? {
+                ...project,
+                frames: [
+                  ...project.frames,
+                  newFrame,
+                ],
+              }
+            : project
+        )
+      );
+
+      setFramePositions((current) => ({
+        ...current,
+        [`${projectId}:${frameId}`]:
+          newFrame.position,
+      }));
+
+      setFrameSizes((current) => ({
+        ...current,
+        [`${projectId}:${frameId}`]: {
+          width: newFrame.width!,
+          height: newFrame.height!,
+        },
+      }));
+
+      setEditingFrameTitle(
+        `${projectId}:${frameId}`
+      );
+    }
+
+    // EXISTING FRAME MEDIA CHANGE
+    else {
+      const [
+        existingProjectId,
+        frameId,
+      ] = selection.split(":");
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id ===
+          existingProjectId
+            ? {
+                ...project,
+                frames:
+                  project.frames.map(
+                    (frame) =>
+                      frame.id ===
+                      frameId
+                        ? {
+                            ...frame,
+                            type,
+                            src: publicUrl,
+                            title:
+                              file.name,
+                          }
+                        : frame
+                  ),
+              }
+            : project
+        )
+      );
+    }
+
+    console.log(
+  "FRAME UPLOAD SUCCESS:",
+  publicUrl
+);
+
+setSelectingFrameMedia(null);
+input.value = "";
+  } catch (error) {
+    console.error(
+      "FRAME UPLOAD ERROR:",
+      error
+    );
+
+    setSelectingFrameMedia(null);
+input.value = "";
+  }
+}}
+/>
 
     </main>
   );

@@ -37,6 +37,14 @@ export async function POST(request: Request) {
   frames,
 } = body;
 
+console.log(
+  "SERVER SAVE POSITION:",
+  {
+    projectId,
+    projectPosition,
+  }
+);
+
     if (!projectId) {
       return NextResponse.json(
         { error: "Missing projectId" },
@@ -96,34 +104,60 @@ if (
   project.year = projectYear;
 }
 
-    project.frames = project.frames.map(
-      (frame: any) => {
-        const editedFrame = frames?.find(
-          (item: any) =>
-            item.id === frame.id
+    if (Array.isArray(frames)) {
+  project.frames = frames.map(
+    (editedFrame: any) => {
+      const existingFrame =
+        project.frames.find(
+          (frame: any) =>
+            frame.id === editedFrame.id
         );
 
-        if (!editedFrame) {
-          return frame;
-        }
-
-        return {
-  ...frame,
-  title:
-    typeof editedFrame.title === "string"
-      ? editedFrame.title
-      : frame.title,
-  position: editedFrame.position,
-  ...(editedFrame.width &&
-  editedFrame.height
-    ? {
-        width: editedFrame.width,
-        height: editedFrame.height,
-      }
-    : {}),
-};
-      }
-    );
+      return {
+        ...(existingFrame ?? {}),
+        id: editedFrame.id,
+        title:
+          typeof editedFrame.title ===
+          "string"
+            ? editedFrame.title
+            : existingFrame?.title ??
+              "Untitled",
+        type:
+          editedFrame.type ??
+          existingFrame?.type ??
+          "image",
+        src:
+          editedFrame.src ??
+          existingFrame?.src ??
+          "",
+        position:
+          editedFrame.position ??
+          existingFrame?.position ??
+          {
+            x: 0,
+            y: 0,
+          },
+        ...(editedFrame.width &&
+        editedFrame.height
+          ? {
+              width:
+                editedFrame.width,
+              height:
+                editedFrame.height,
+            }
+          : existingFrame?.width &&
+            existingFrame?.height
+          ? {
+              width:
+                existingFrame.width,
+              height:
+                existingFrame.height,
+            }
+          : {}),
+      };
+    }
+  );
+}
 
     await fs.writeFile(
       projectPath,
