@@ -52,7 +52,7 @@ const sections = [
 
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 2;
-const PROJECT_PADDING = 40;
+const PROJECT_PADDING = 24;
 
 const INITIAL_CAMERA = {
   x: 0,
@@ -656,6 +656,8 @@ const [newProjectClassifications, setNewProjectClassifications] =
 
 
     const [hoveredProjectId, setHoveredProjectId] =
+  useState<string | null>(null);
+  const [hoveredFrameId, setHoveredFrameId] =
   useState<string | null>(null);
 
   const [editingProject, setEditingProject] =
@@ -4155,12 +4157,14 @@ useEffect(() => {
 
       </header>
 
+
       {/* CANVAS VIEWPORT */}
 
       <div
         ref={
           viewportRef
         }
+
         className={`h-full w-full select-none touch-none ${
           dragging
             ? "cursor-grabbing"
@@ -4200,341 +4204,362 @@ useEffect(() => {
 
           {/* PROJECTS */}
 
-          {projects.map(
-            (project) => {
-              const position =
-                physicsPositions[
-                  project.id
-                ] ??
-                projectPositions[
-                  project.id
-                ] ??
-                project.position;
+{projects.map((project) => {
+  const position =
+    physicsPositions[project.id] ??
+    projectPositions[project.id] ??
+    project.position;
 
-              const projectSize =
-                getProjectSize(
-                  project,
-                  frameSizes,
-                  framePositions
-                );
+  const projectSize = getProjectSize(
+    project,
+    frameSizes,
+    framePositions
+  );
 
-              const projectWidth =
-                projectSize.width;
+  const projectWidth = projectSize.width;
+  const projectHeight = projectSize.height;
 
-              const projectHeight =
-                projectSize.height;
+  const projectScale =
+    projectScales[project.id] ?? 1;
 
-                const projectScale =
-  projectScales[project.id] ?? 1;
+    const contentWidth =
+  Math.max(
+    0,
+    projectWidth - PROJECT_PADDING * 2
+  );
 
-              return (
-                <div
-    key={project.id}
-    ref={(element) => {
-      projectElementRefs.current[project.id] =
-        element;
-    }}
+const contentHeight =
+  Math.max(
+    0,
+    projectHeight - PROJECT_PADDING * 2
+  );
 
-                  className="absolute cursor-grab active:cursor-grabbing"
-                  style={{
-  left: position.x,
-  top: position.y,
-  transform: `scale(${projectScale})`,
-  transformOrigin: "top left",
-  zIndex: projectZIndexes[project.id] ?? 0,
-}}
-                  onPointerDown={(
-                    e
-                  ) =>
-                    handleProjectPointerDown(
-                      e,
-                      project.id
-                    )
-                  }
-                  onPointerMove={
-                    handleProjectPointerMove
-                  }
-                  onPointerUp={
-                    handleProjectPointerUp
-                  }
-                  onPointerCancel={
-                    handleProjectPointerUp
-                  }
+const renderedProjectWidth =
+  contentWidth * projectScale +
+  PROJECT_PADDING * 2;
 
-                  onPointerEnter={() => {
-  setHoveredProjectId(project.id);
-}}
-
-onPointerLeave={() => {
-  setHoveredProjectId(null);
-}}
-                >
-
-              
-
-                  {/* PROJECT BOUNDARY */}
-
-                  <div
-
-ref={(element) => {
-  projectBoundaryRefs.current[project.id] =
-    element;
-}}
-
-                    className={`relative rounded-[2rem] border transition-colors ${
-  unlockedProjects[project.id]
-    ? "border-red-500"
-    : "border-black/10 dark:border-white/10"
-} bg-white/60 dark:bg-zinc-900/60`}
-                    style={{
-                      width:
-                        projectWidth,
-
-                      height:
-                        projectHeight,
-                    }}
-                  >
-
-
-                    {/* PROJECT FRAMES */}
-
-{project.frames.map((frame) => {
-  const frameKey =
-    `${project.id}:${frame.id}`;
-
-  const framePosition =
-    framePositions[frameKey] ??
-    frame.position;
-
-  const frameSize =
-  frameSizes[frameKey] ??
-  (frame.width && frame.height
-    ? {
-        width: frame.width,
-        height: frame.height,
-      }
-    : {
-        width: 420,
-        height: 300,
-      });
-
-  const isUnlocked =
-    unlockedProjects[project.id];
-
-
+const renderedProjectHeight =
+  contentHeight * projectScale +
+  PROJECT_PADDING * 2;
+    
 
   return (
     <div
-      key={frame.id}
+      key={project.id}
       ref={(element) => {
-  frameElementRefs.current[frameKey] = element;
-}}
-      className={`absolute ${
-        isUnlocked
-          ? "cursor-move"
-          : ""
-      }`}
-
-onDoubleClick={(e) => {
-  if (!isAdmin) return;
-  if (!isUnlocked) return;
-
-  e.stopPropagation();
-
-  setEditingFrameTitle(frameKey);
-}}
-
+        projectElementRefs.current[project.id] =
+          element;
+      }}
+      className="absolute cursor-grab active:cursor-grabbing"
       style={{
-  left:
-    framePosition.x + PROJECT_PADDING,
-  top:
-    framePosition.y + PROJECT_PADDING,
-}}
+        left: position.x,
+        top: position.y,
+width: renderedProjectWidth,
+height: renderedProjectHeight,
+        zIndex:
+          projectZIndexes[project.id] ?? 0,
+      }}
       onPointerDown={(e) =>
-        handleFramePointerDown(
+        handleProjectPointerDown(
           e,
-          project.id,
-          frame.id
+          project.id
         )
       }
       onPointerMove={
-        handleFramePointerMove
+        handleProjectPointerMove
       }
       onPointerUp={
-        handleFramePointerUp
+        handleProjectPointerUp
       }
       onPointerCancel={
-        handleFramePointerUp
+        handleProjectPointerUp
       }
+      onPointerEnter={() => {
+        setHoveredProjectId(project.id);
+      }}
+      onPointerLeave={() => {
+        setHoveredProjectId(null);
+      }}
     >
-      
 
-
-
-  
-
-      {/* FRAME / MEDIA */}
+     {/* PROJECT BOUNDARY */}
 
 <div
-  className="relative w-fit"
+  ref={(element) => {
+    projectBoundaryRefs.current[
+      project.id
+    ] = element;
+  }}
+  className={`relative rounded-3xl border transition-colors ${
+    unlockedProjects[project.id]
+      ? "border-red-500"
+      : "border-black/10 dark:border-white/10"
+  } bg-white/60 dark:bg-zinc-900/60`}
   style={{
-    width: frameSize.width,
+  width: "100%",
+  height: "100%",
+}}
+>
+  <div
+  style={{
+    position: "absolute",
+    left: PROJECT_PADDING,
+    top: PROJECT_PADDING,
+    width: contentWidth,
+    height: contentHeight,
+    transform: `scale(${projectScale})`,
+    transformOrigin: "top left",
   }}
 >
-  {frame.src && (
-  frame.type === "video" ? (
-    <video
-      src={frame.src}
-      className="block h-auto w-full rounded-xl"
-      muted
-      loop
-      autoPlay
-      playsInline
-      onLoadedMetadata={(e) =>
-        handleVideoMetadata(
-          project.id,
-          frame.id,
-          e.currentTarget
-        )
-      }
-    />
-  ) : (
-    <img
-      src={frame.src}
-      alt={frame.title}
-      className="block h-auto w-full rounded-xl"
-      draggable={false}
-      onLoad={(e) =>
-        handleImageLoad(
-          project.id,
-          frame.id,
-          e.currentTarget
-        )
-      }
-    />
-  )
-  )}
 
+          {/* PROJECT FRAMES */}
 
-  {/* RESIZE HANDLE */}
+          {project.frames.map((frame) => {
+            const frameKey =
+              `${project.id}:${frame.id}`;
 
-  {isUnlocked && (
-    <div
-      className="absolute bottom-[-4px] right-[-4px] z-20 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
-      style={{
-  touchAction: "none",
-  transform: `scale(${
-    1 /
-    (projectScale *
-      camera.current.scale)
-  })`,
-  transformOrigin: "center",
-}}
-      onPointerDown={(e) => {
-        e.stopPropagation();
+            const framePosition =
+              framePositions[frameKey] ??
+              frame.position;
 
-        handleFrameResizePointerDown(
-          e,
-          project.id,
-          frame.id
-        );
-      }}
-      onPointerMove={
-        handleFrameResizePointerMove
-      }
-      onPointerUp={
-        handleFrameResizePointerUp
-      }
-      onPointerCancel={
-        handleFrameResizePointerUp
-      }
-      aria-label={`Resize ${frame.title}`}
-    />
-  )}
+            const frameSize =
+              frameSizes[frameKey] ??
+              (frame.width && frame.height
+                ? {
+                    width: frame.width,
+                    height: frame.height,
+                  }
+                : {
+                    width: 420,
+                    height: 300,
+                  });
 
-  {/* DELETE FRAME */}
+            const isUnlocked =
+              unlockedProjects[project.id];
 
-{isUnlocked && isAdmin && (
-  <button
-    type="button"
-    className="absolute right-[-8px] top-[-8px] z-30 flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] leading-none text-black/60 shadow-sm hover:text-black dark:border-white/10 dark:bg-zinc-800 dark:text-white/60 dark:hover:text-white"
-    style={{
-      transform: `scale(${
-        1 /
-        (projectScale *
-          camera.current.scale)
-      })`,
-      transformOrigin: "center",
-    }}
-    onPointerDown={(e) => {
-      e.stopPropagation();
-    }}
-    onClick={(e) => {
-      e.stopPropagation();
-
-      deleteFrame(
-        project.id,
-        frame.id
-      );
-    }}
-    aria-label={`Delete ${frame.title}`}
-  >
-    ×
-  </button>
-)}
-
-</div>
-    </div>
-  );
-  
-})}
-
-
-
-{unlockedProjects[project.id] && (
+            return (
   <div
-    className="absolute bottom-[-6px] right-[-6px] z-30 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
-    style={{
-  touchAction: "none",
-  transform: `scale(${
-    1 /
-    (projectScale *
-      camera.current.scale)
-  })`,
-  transformOrigin: "center",
-}}
-    onPointerDown={(e) => {
-      e.stopPropagation();
-
-      handleProjectResizePointerDown(
-        e,
-        project.id
-      );
+    key={frame.id}
+    ref={(element) => {
+      frameElementRefs.current[
+        frameKey
+      ] = element;
     }}
-    onPointerMove={
-      handleProjectResizePointerMove
-    }
-    onPointerUp={
-      handleProjectResizePointerUp
-    }
-    onPointerCancel={
-      handleProjectResizePointerUp
-    }
-    aria-label={`Resize ${project.title}`}
-  />
-)}
 
-                  </div>
+    onPointerEnter={() => {
+      setHoveredFrameId(frameKey);
+    }}
 
+    onPointerLeave={() => {
+      setHoveredFrameId(null);
+    }}
+                className={`absolute ${
+                  isUnlocked
+                    ? "cursor-move"
+                    : ""
+                }`}
+                onDoubleClick={(e) => {
+                  if (!isAdmin) return;
+                  if (!isUnlocked) return;
+
+                  e.stopPropagation();
+
+                  setEditingFrameTitle(
+                    frameKey
+                  );
+                }}
+                style={{
+                  left: framePosition.x,
+                  top: framePosition.y,
+                }}
+                onPointerDown={(e) =>
+                  handleFramePointerDown(
+                    e,
+                    project.id,
+                    frame.id
+                  )
+                }
+                onPointerMove={
+                  handleFramePointerMove
+                }
+                onPointerUp={
+                  handleFramePointerUp
+                }
+                onPointerCancel={
+                  handleFramePointerUp
+                }
+              >
+
+                {/* FRAME / MEDIA */}
+
+                <div
+                  className="relative w-fit"
+                  style={{
+                    width:
+                      frameSize.width,
+                  }}
+                >
+                  {frame.src &&
+                    (frame.type ===
+                    "video" ? (
+                      <video
+                        src={frame.src}
+                        className="block h-auto w-full rounded-xl"
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        onLoadedMetadata={(e) =>
+                          handleVideoMetadata(
+                            project.id,
+                            frame.id,
+                            e.currentTarget
+                          )
+                        }
+                      />
+                    ) : (
+                      <img
+                        src={frame.src}
+                        alt={frame.title}
+                        className="block h-auto w-full rounded-xl"
+                        draggable={false}
+                        onLoad={(e) =>
+                          handleImageLoad(
+                            project.id,
+                            frame.id,
+                            e.currentTarget
+                          )
+                        }
+                      />
+                    ))}
+
+                  {/* RESIZE HANDLE */}
+
+                  {isUnlocked && (
+                    <div
+                      className="absolute bottom-[-4px] right-[-4px] z-20 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
+                      style={{
+                        touchAction: "none",
+                        transform:
+                          `scale(${
+                            1 /
+                            (
+                              projectScale *
+                              camera.current.scale
+                            )
+                          })`,
+                        transformOrigin:
+                          "center",
+                      }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+
+                        handleFrameResizePointerDown(
+                          e,
+                          project.id,
+                          frame.id
+                        );
+                      }}
+                      onPointerMove={
+                        handleFrameResizePointerMove
+                      }
+                      onPointerUp={
+                        handleFrameResizePointerUp
+                      }
+                      onPointerCancel={
+                        handleFrameResizePointerUp
+                      }
+                      aria-label={`Resize ${frame.title}`}
+                    />
+                  )}
+
+                  {/* DELETE FRAME */}
+
+                  {isUnlocked &&
+                    isAdmin && (
+                      <button
+                        type="button"
+                        className="absolute right-[-8px] top-[-8px] z-30 flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] leading-none text-black/60 shadow-sm hover:text-black dark:border-white/10 dark:bg-zinc-800 dark:text-white/60 dark:hover:text-white"
+                        style={{
+                          transform:
+                            `scale(${
+                              1 /
+                              (
+                                projectScale *
+                                camera.current.scale
+                              )
+                            })`,
+                          transformOrigin:
+                            "center",
+                        }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          deleteFrame(
+                            project.id,
+                            frame.id
+                          );
+                        }}
+                        aria-label={`Delete ${frame.title}`}
+                      >
+                        ×
+                      </button>
+                    )}
                 </div>
-              );
-            }
+              </div>
+            );
+          })}
+</div>
+          {/* PROJECT RESIZE HANDLE */}
+
+          {unlockedProjects[
+            project.id
+          ] && (
+            <div
+              className="absolute bottom-[-7px] right-[-7px] z-30 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
+              style={{
+                touchAction: "none",
+                transform:
+  `scale(${
+    1 /
+    camera.current.scale
+  })`,
+                transformOrigin:
+                  "center",
+              }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+
+                handleProjectResizePointerDown(
+                  e,
+                  project.id
+                );
+              }}
+              onPointerMove={
+                handleProjectResizePointerMove
+              }
+              onPointerUp={
+                handleProjectResizePointerUp
+              }
+              onPointerCancel={
+                handleProjectResizePointerUp
+              }
+              aria-label={`Resize ${project.title}`}
+            />
           )}
+            
+    </div>
+    </div>
+    );
+    })}
 
-         </div>
+    {/* CLOSE CANVAS */}
+    </div>
 
-
-{/* SCREEN-SPACE LABELS */}
+    {/* SCREEN-SPACE LABELS */}
 <div
   ref={screenLabelLayerRef}
   className="pointer-events-none absolute inset-0 z-40"
@@ -5029,10 +5054,10 @@ setHoveredEditProject(null);
     ? "pointer-events-auto"
     : "pointer-events-none"
 } text-[8px] leading-none uppercase tracking-[0.16em] text-black/35 dark:text-white/35 transition-opacity ${
-  hoveredProjectId === project.id ||
-  editingFrameTitle === frameKey
-    ? "opacity-100"
-    : "opacity-0"
+  hoveredFrameId === frameKey ||
+editingFrameTitle === frameKey
+  ? "opacity-100"
+  : "opacity-0"
 }`}
   onDoubleClick={(e) => {
   e.preventDefault();
@@ -5079,13 +5104,13 @@ setHoveredEditProject(null);
 
       );
     })
-  )}
+  
+
+       )}
+</div>
 </div>
 
-
-      </div>
-
-      {/* ZOOM CONTROLS */}
+{/* ZOOM CONTROLS */}
 
       <div className="fixed bottom-6 right-6 z-50 flex items-center gap-1 rounded-full bg-white/90 dark:bg-zinc-900/90 p-1 shadow-sm backdrop-blur-md">
 
@@ -5293,12 +5318,9 @@ setHoveredEditProject(null);
         type,
         src: publicUrl,
         position: {
-          x: PROJECT_PADDING,
-          y:
-            PROJECT_PADDING +
-            project.frames.length *
-              40,
-        },
+  x: 0,
+  y: project.frames.length * 40,
+},
         width: 420,
         height: 300,
       };

@@ -9,29 +9,17 @@
     "illustration"
   ],
   "position": {
-    "x": 1568.7692674713928,
-    "y": 441.60453378046344
+    "x": 582.9210023804724,
+    "y": 495.4386121860941
   },
   "frames": [
-    {
-      "id": "identity",
-      "title": "Identity",
-      "type": "image",
-      "src": "/work/base-eleven/identity.jpg",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "width": 600,
-      "height": 337.5
-    },
     {
       "id": "campaign",
       "title": "Campaign",
       "type": "image",
       "src": "/work/base-eleven/campaign.jpg",
       "position": {
-        "x": 64.68459755996739,
+        "x": 0,
         "y": 341.65333605910706
       },
       "width": 405.6,
@@ -43,7 +31,7 @@
       "type": "image",
       "src": "/work/base-eleven/packaging.jpg",
       "position": {
-        "x": 652.2709577638992,
+        "x": 786.6202424172026,
         "y": 0
       },
       "width": 485.2674839812878,
