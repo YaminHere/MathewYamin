@@ -21,6 +21,7 @@ type ProjectFrame = {
   };
   width?: number;
   height?: number;
+  zIndex?: number;
 };
 
 type FrameSize = {
@@ -50,9 +51,10 @@ const sections = [
   { id: "illustration", label: "Illustration" },
 ];
 
-const MIN_SCALE = 0.35;
-const MAX_SCALE = 2;
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 4;
 const PROJECT_PADDING = 24;
+const FRAME_RADIUS = 8;
 
 const INITIAL_CAMERA = {
   x: 0,
@@ -738,6 +740,11 @@ projectZIndexesRef.current = projectZIndexes;
     activeClassification,
     setActiveClassification,
   ] = useState<string | null>(null);
+
+  const [
+  collageReady,
+  setCollageReady,
+] = useState(false);
 
   const attractionPoint =
     useRef<{
@@ -2444,6 +2451,89 @@ const createFrame = (
   frameFileInputRef.current?.click();
 };
 
+const changeFrameLayer = (
+  projectId: string,
+  frameId: string,
+  direction:
+    | "front"
+    | "back"
+    | "forward"
+    | "backward"
+) => {
+  if (!isAdmin) return;
+
+  setProjects((current) =>
+    current.map((project) => {
+      if (project.id !== projectId) {
+        return project;
+      }
+
+      const frames = [...project.frames];
+
+      const orderedFrames = frames
+        .map((frame, index) => ({
+          frame,
+          index,
+          zIndex: frame.zIndex ?? index,
+        }))
+        .sort((a, b) => a.zIndex - b.zIndex);
+
+      const currentIndex =
+        orderedFrames.findIndex(
+          (item) => item.frame.id === frameId
+        );
+
+      if (currentIndex === -1) {
+        return project;
+      }
+
+      let targetIndex = currentIndex;
+
+      if (direction === "front") {
+        targetIndex = orderedFrames.length - 1;
+      }
+
+      if (direction === "back") {
+        targetIndex = 0;
+      }
+
+      if (direction === "forward") {
+        targetIndex = Math.min(
+          currentIndex + 1,
+          orderedFrames.length - 1
+        );
+      }
+
+      if (direction === "backward") {
+        targetIndex = Math.max(
+          currentIndex - 1,
+          0
+        );
+      }
+
+      if (targetIndex !== currentIndex) {
+        const [moved] =
+          orderedFrames.splice(currentIndex, 1);
+
+        orderedFrames.splice(
+          targetIndex,
+          0,
+          moved
+        );
+      }
+
+      return {
+        ...project,
+        frames: orderedFrames.map(
+          (item, index) => ({
+            ...item.frame,
+            zIndex: index,
+          })
+        ),
+      };
+    })
+  );
+};
 
 const deleteFrame = async (
   projectId: string,
@@ -3101,10 +3191,7 @@ const dy =
       targetCamera.current
         .scale;
 
-    const zoomFactor =
-      Math.exp(
-        -e.deltaY * 0.0012
-      );
+    const zoomFactor = Math.exp(-e.deltaY * 0.0020);
 
     const nextScale =
       Math.min(
@@ -4093,63 +4180,55 @@ useEffect(() => {
           MATHEW YAMIN
         </div>
 
-        <nav className="pointer-events-auto hidden items-center gap-5 rounded-full bg-white/80 dark:bg-zinc-900/80 px-5 py-3 text-xs backdrop-blur-md md:flex">
+        <nav className="pointer-events-auto hidden items-center gap-5 rounded-full bg-white/80 px-5 py-3 text-xs backdrop-blur-md dark:bg-zinc-900/80 md:flex">
 
-          <button
-            onClick={
-              resetView
-            }
-            className="transition-opacity hover:opacity-50"
-          >
-            ALL WORK
-          </button>
+  {/* CANVAS NAVIGATION */}
 
-
-          {isAdmin && (
   <button
-    type="button"
-    onClick={() => {
-      setCreatingProject(true);
-    }}
+    onClick={resetView}
     className="transition-opacity hover:opacity-50"
   >
-    NEW PROJECT
+    ALL WORK
   </button>
-)}
 
-{isAdmin && (
+  {sections.map((section) => (
+    <button
+      key={section.id}
+      onClick={() => goToSection(section)}
+      className="transition-opacity hover:opacity-50"
+    >
+      {section.label.toUpperCase()}
+    </button>
+  ))}
 
-          <button
-  type="button"
-  onClick={saveAllProjects}
-  disabled={isSaving}
-  className="transition-opacity hover:opacity-50 disabled:cursor-not-allowed disabled:opacity-30"
->
-  {isSaving
-    ? "SAVING..."
-    : "SAVE"}
-</button>
-)}
+  {/* ADMIN ACTIONS */}
 
-          {sections.map(
-            (section) => (
-              <button
-                key={
-                  section.id
-                }
-                onClick={() =>
-                  goToSection(
-                    section
-                  )
-                }
-                className="transition-opacity hover:opacity-50"
-              >
-                {section.label.toUpperCase()}
-              </button>
-            )
-          )}
+  {isAdmin && (
+    <>
+      <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
 
-        </nav>
+      <button
+        type="button"
+        onClick={() => {
+          setCreatingProject(true);
+        }}
+        className="transition-opacity hover:opacity-50"
+      >
+        NEW PROJECT
+      </button>
+
+      <button
+        type="button"
+        onClick={saveAllProjects}
+        disabled={isSaving}
+        className="transition-opacity hover:opacity-50 disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        {isSaving ? "SAVING..." : "SAVE"}
+      </button>
+    </>
+  )}
+
+</nav>
 
         <div className="pointer-events-auto text-xs">
           2026
@@ -4371,6 +4450,7 @@ height: renderedProjectHeight,
                 style={{
                   left: framePosition.x,
                   top: framePosition.y,
+                  zIndex: frame.zIndex ?? 0,
                 }}
                 onPointerDown={(e) =>
                   handleFramePointerDown(
@@ -4404,7 +4484,11 @@ height: renderedProjectHeight,
                     "video" ? (
                       <video
                         src={frame.src}
-                        className="block h-auto w-full rounded-xl"
+                        className="block h-auto w-full"
+style={{
+  borderRadius:
+    FRAME_RADIUS / projectScale,
+}}
                         muted
                         loop
                         autoPlay
@@ -4421,7 +4505,11 @@ height: renderedProjectHeight,
                       <img
                         src={frame.src}
                         alt={frame.title}
-                        className="block h-auto w-full rounded-xl"
+                        className="block h-auto w-full"
+style={{
+  borderRadius:
+    FRAME_RADIUS / projectScale,
+}}
                         draggable={false}
                         onLoad={(e) =>
                           handleImageLoad(
@@ -4476,38 +4564,108 @@ height: renderedProjectHeight,
                   {/* DELETE FRAME */}
 
                   {isUnlocked &&
-                    isAdmin && (
-                      <button
-                        type="button"
-                        className="absolute right-[-8px] top-[-8px] z-30 flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] leading-none text-black/60 shadow-sm hover:text-black dark:border-white/10 dark:bg-zinc-800 dark:text-white/60 dark:hover:text-white"
-                        style={{
-                          transform:
-                            `scale(${
-                              1 /
-                              (
-                                projectScale *
-                                camera.current.scale
-                              )
-                            })`,
-                          transformOrigin:
-                            "center",
-                        }}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
+  isAdmin &&
+  hoveredFrameId === frameKey && (
+    <div
+      className="absolute right-[-8px] top-[-8px] z-40 flex items-center gap-1"
+      style={{
+        transform:
+          `scale(${
+            1 /
+            (
+              projectScale *
+              camera.current.scale
+            )
+          })`,
+        transformOrigin: "top right",
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+      }}
+    >
 
-                          deleteFrame(
-                            project.id,
-                            frame.id
-                          );
-                        }}
-                        aria-label={`Delete ${frame.title}`}
-                      >
-                        ×
-                      </button>
-                    )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          changeFrameLayer(
+            project.id,
+            frame.id,
+            "back"
+          );
+        }}
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
+        aria-label="Send to back"
+      >
+        ⇩
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          changeFrameLayer(
+            project.id,
+            frame.id,
+            "backward"
+          );
+        }}
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
+        aria-label="Send backward"
+      >
+        ↓
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          changeFrameLayer(
+            project.id,
+            frame.id,
+            "forward"
+          );
+        }}
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
+        aria-label="Bring forward"
+      >
+        ↑
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          changeFrameLayer(
+            project.id,
+            frame.id,
+            "front"
+          );
+        }}
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
+        aria-label="Bring to front"
+      >
+        ⇧
+      </button>
+
+      <button
+        type="button"
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] text-black/60 shadow-sm hover:text-black dark:border-white/10 dark:bg-zinc-800 dark:text-white/60 dark:hover:text-white"
+        onClick={(e) => {
+          e.stopPropagation();
+
+          deleteFrame(
+            project.id,
+            frame.id
+          );
+        }}
+        aria-label={`Delete ${frame.title}`}
+      >
+        ×
+      </button>
+
+    </div>
+  )}
                 </div>
               </div>
             );
@@ -5188,6 +5346,7 @@ editingFrameTitle === frameKey
   ref={frameFileInputRef}
   id="frame-file-input"
   type="file"
+  multiple
   accept="image/*,video/*,.gif,.pdf"
   style={{
     position: "absolute",
@@ -5197,10 +5356,12 @@ editingFrameTitle === frameKey
     pointerEvents: "none",
   }}
   onChange={async (e) => {
-  const file = e.target.files?.[0];
   const input = e.currentTarget;
+  const files = Array.from(
+    e.target.files ?? []
+  );
 
-  if (!file) {
+  if (files.length === 0) {
     setSelectingFrameMedia(null);
     return;
   }
@@ -5213,191 +5374,285 @@ editingFrameTitle === frameKey
     return;
   }
 
-  let type: ProjectFrame["type"];
-
-  if (file.type === "application/pdf") {
-    type = "pdf";
-  } else if (
-    file.type.startsWith("video/")
-  ) {
-    type = "video";
-  } else if (
-    file.type === "image/gif" ||
-    file.name
-      .toLowerCase()
-      .endsWith(".gif")
-  ) {
-    type = "gif";
-  } else if (
-    file.type.startsWith("image/")
-  ) {
-    type = "image";
-  } else {
-    console.error(
-      "Unsupported file type:",
-      file.type
-    );
-
-    setSelectingFrameMedia(null);
-    input.value = "";
-    return;
-  }
-
   const projectId =
     selection.startsWith("new:")
       ? selection.slice(4)
       : selection.split(":")[0];
 
   try {
-    const formData =
-      new FormData();
-
-    formData.append(
-      "projectId",
-      projectId
-    );
-
-    formData.append(
-      "file",
-      file
-    );
-
-    const response =
-      await fetch(
-        "/api/work/upload",
-        {
-          method: "POST",
-          body: formData,
-        }
+    const project =
+      projectsRef.current.find(
+        (project) =>
+          project.id === projectId
       );
 
-    const result =
-      await response.json();
-
-    if (!response.ok) {
+    if (!project) {
       throw new Error(
-        result.error ||
-          "Upload failed"
+        "Project not found"
       );
     }
 
-    const publicUrl =
-      result.publicUrl;
-
-    if (
-      typeof publicUrl !==
-      "string"
-    ) {
-      throw new Error(
-        "Upload did not return a file URL"
-      );
-    }
-
-    // CREATE NEW FRAME
+    // NEW FRAME CREATION
     if (
       selection.startsWith("new:")
     ) {
-      const project =
-        projectsRef.current.find(
-          (project) =>
-            project.id === projectId
+      for (
+        let index = 0;
+        index < files.length;
+        index++
+      ) {
+        const file = files[index];
+
+        let type: ProjectFrame["type"];
+
+        if (
+          file.type ===
+          "application/pdf"
+        ) {
+          type = "pdf";
+        } else if (
+          file.type.startsWith(
+            "video/"
+          )
+        ) {
+          type = "video";
+        } else if (
+          file.type === "image/gif" ||
+          file.name
+            .toLowerCase()
+            .endsWith(".gif")
+        ) {
+          type = "gif";
+        } else if (
+          file.type.startsWith(
+            "image/"
+          )
+        ) {
+          type = "image";
+        } else {
+          console.warn(
+            "Skipping unsupported file:",
+            file.name
+          );
+          continue;
+        }
+
+        const formData =
+          new FormData();
+
+        formData.append(
+          "projectId",
+          projectId
         );
 
-      if (!project) {
-        throw new Error(
-          "Project not found"
+        formData.append(
+          "file",
+          file
+        );
+
+        const response =
+          await fetch(
+            "/api/work/upload",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+        const result =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error ||
+              `Upload failed for ${file.name}`
+          );
+        }
+
+        const publicUrl =
+          result.publicUrl;
+
+        if (
+          typeof publicUrl !==
+          "string"
+        ) {
+          throw new Error(
+            `Upload did not return a file URL for ${file.name}`
+          );
+        }
+
+        const currentProject =
+          projectsRef.current.find(
+            (item) =>
+              item.id === projectId
+          );
+
+        if (!currentProject) {
+          throw new Error(
+            "Project no longer exists"
+          );
+        }
+
+        const frameId =
+          `frame-${Date.now()}-${index}`;
+
+        const frameIndex =
+          currentProject.frames.length;
+
+        const newFrame: ProjectFrame = {
+          id: frameId,
+          title: file.name,
+          type,
+          src: publicUrl,
+          position: {
+            x: 0,
+            y: frameIndex * 40,
+          },
+          width: 420,
+          height: 300,
+        };
+
+        setProjects((current) =>
+          current.map(
+            (project) =>
+              project.id === projectId
+                ? {
+                    ...project,
+                    frames: [
+                      ...project.frames,
+                      newFrame,
+                    ],
+                  }
+                : project
+          )
+        );
+
+        setFramePositions(
+          (current) => ({
+            ...current,
+            [`${projectId}:${frameId}`]:
+              newFrame.position,
+          })
+        );
+
+        console.log(
+          "FRAME UPLOAD SUCCESS:",
+          publicUrl
         );
       }
-
-      const frameId =
-        `frame-${Date.now()}`;
-
-      const newFrame: ProjectFrame = {
-        id: frameId,
-        title: file.name,
-        type,
-        src: publicUrl,
-        position: {
-  x: 0,
-  y: project.frames.length * 40,
-},
-        width: 420,
-        height: 300,
-      };
-
-      setProjects((current) =>
-        current.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                frames: [
-                  ...project.frames,
-                  newFrame,
-                ],
-              }
-            : project
-        )
-      );
-
-      setFramePositions((current) => ({
-        ...current,
-        [`${projectId}:${frameId}`]:
-          newFrame.position,
-      }));
-
-      setFrameSizes((current) => ({
-        ...current,
-        [`${projectId}:${frameId}`]: {
-          width: newFrame.width!,
-          height: newFrame.height!,
-        },
-      }));
-
-      setEditingFrameTitle(
-        `${projectId}:${frameId}`
-      );
     }
 
     // EXISTING FRAME MEDIA CHANGE
     else {
+      if (files.length > 1) {
+        console.warn(
+          "Multiple files selected for an existing frame. Using the first file only."
+        );
+      }
+
+      const file = files[0];
+
+      let type: ProjectFrame["type"];
+
+      if (
+        file.type ===
+        "application/pdf"
+      ) {
+        type = "pdf";
+      } else if (
+        file.type.startsWith(
+          "video/"
+        )
+      ) {
+        type = "video";
+      } else if (
+        file.type === "image/gif" ||
+        file.name
+          .toLowerCase()
+          .endsWith(".gif")
+      ) {
+        type = "gif";
+      } else if (
+        file.type.startsWith(
+          "image/"
+        )
+      ) {
+        type = "image";
+      } else {
+        throw new Error(
+          `Unsupported file type: ${file.type}`
+        );
+      }
+
       const [
         existingProjectId,
         frameId,
       ] = selection.split(":");
 
+      const formData =
+        new FormData();
+
+      formData.append(
+        "projectId",
+        existingProjectId
+      );
+
+      formData.append(
+        "file",
+        file
+      );
+
+      const response =
+        await fetch(
+          "/api/work/upload",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Upload failed"
+        );
+      }
+
+      const publicUrl =
+        result.publicUrl;
+
       setProjects((current) =>
-        current.map((project) =>
-          project.id ===
-          existingProjectId
-            ? {
-                ...project,
-                frames:
-                  project.frames.map(
-                    (frame) =>
-                      frame.id ===
-                      frameId
-                        ? {
-                            ...frame,
-                            type,
-                            src: publicUrl,
-                            title:
-                              file.name,
-                          }
-                        : frame
-                  ),
-              }
-            : project
+        current.map(
+          (project) =>
+            project.id ===
+            existingProjectId
+              ? {
+                  ...project,
+                  frames:
+                    project.frames.map(
+                      (frame) =>
+                        frame.id ===
+                        frameId
+                          ? {
+                              ...frame,
+                              type,
+                              src: publicUrl,
+                              title:
+                                file.name,
+                            }
+                          : frame
+                    ),
+                }
+              : project
         )
       );
     }
 
-    console.log(
-  "FRAME UPLOAD SUCCESS:",
-  publicUrl
-);
-
-setSelectingFrameMedia(null);
-input.value = "";
+    setSelectingFrameMedia(null);
+    input.value = "";
   } catch (error) {
     console.error(
       "FRAME UPLOAD ERROR:",
@@ -5405,7 +5660,7 @@ input.value = "";
     );
 
     setSelectingFrameMedia(null);
-input.value = "";
+    input.value = "";
   }
 }}
 />
