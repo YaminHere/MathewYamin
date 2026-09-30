@@ -674,9 +674,8 @@ const [newProjectClassifications, setNewProjectClassifications] =
   const [hoveredEditProject, setHoveredEditProject] =
   useState<string | null>(null);
 
-  const frameFileInputRef =
-  useRef<HTMLInputElement | null>(null);
-  
+  const [hoveredProject, setHoveredProject] =
+  useState<string | null>(null);
 
   const [projectZIndexes, setProjectZIndexes] =
   useState<Record<string, number>>({});
@@ -690,6 +689,10 @@ const projectScalesRef =
   useRef<Record<string, number>>({});
 const framePositionsRef =
   useRef<Record<string, { x: number; y: number }>>({});
+  
+  const frameFileInputRef =
+  useRef<HTMLInputElement | null>(null);
+  
 
   const projectZIndexesRef =
   useRef<Record<string, number>>({});
@@ -1951,7 +1954,7 @@ useEffect(() => {
 
         hasMovement = true;
 
-        const strength = 0.12;
+        const strength = 0.04;
 
         next[project.id] = {
           x:
@@ -2092,7 +2095,7 @@ const animateCamera = () => {
   const target =
     targetCamera.current;
 
-  const ease = 0.28;
+  const ease = 0.08;
 
   current.x +=
     (target.x - current.x) *
@@ -3382,28 +3385,14 @@ useEffect(() => {
     section: (typeof sections)[number]
   ) => {
     const viewport =
-      viewportRef.current;
+  viewportRef.current;
 
-    if (!viewport) return;
+if (!viewport) return;
 
-    const rect =
-      viewport.getBoundingClientRect();
+const rect =
+  viewport.getBoundingClientRect();
 
-    const anchorX =
-      (rect.width / 2 -
-        targetCamera.current
-          .x) /
-      targetCamera.current
-        .scale;
-
-    const anchorY =
-      (rect.height / 2 -
-        targetCamera.current
-          .y) /
-      targetCamera.current
-        .scale;
-
-    const activeProjects =
+  const activeProjects =
       projects.filter(
         (project) =>
           project.classifications.includes(
@@ -3417,6 +3406,50 @@ useEffect(() => {
     ) {
       return;
     }
+
+// ------------------------------------------------
+// RESET VIEWPORT ZOOM SMOOTHLY
+// ------------------------------------------------
+
+const currentScale =
+  targetCamera.current.scale;
+
+const currentAnchorX =
+  (rect.width / 2 -
+    targetCamera.current.x) /
+  currentScale;
+
+const currentAnchorY =
+  (rect.height / 2 -
+    targetCamera.current.y) /
+  currentScale;
+
+const targetScale =
+  INITIAL_CAMERA.scale;
+
+targetCamera.current = {
+  ...targetCamera.current,
+
+  x:
+    rect.width / 2 -
+    currentAnchorX *
+      targetScale,
+
+  y:
+    rect.height / 2 -
+    currentAnchorY *
+      targetScale,
+
+  scale: targetScale,
+};
+
+const anchorX =
+  currentAnchorX;
+
+const anchorY =
+  currentAnchorY;
+  
+    
 
     // ------------------------------------------------
     // FIND FOCAL PROJECT
@@ -4055,12 +4088,20 @@ useEffect(() => {
   // FRAME INTRINSIC SIZING
   // --------------------------------------------------
 
-  const handleImageLoad = (
+  const handleImageLoad = async (
   projectId: string,
   frameId: string,
   image: HTMLImageElement
 ) => {
   const key = `${projectId}:${frameId}`;
+
+  // Wait until the image is fully decoded
+  // before allowing the browser to render it.
+  try {
+    await image.decode();
+  } catch {
+    // Ignore decode errors.
+  }
 
   // If this frame already has a saved size,
   // do not overwrite it with intrinsic sizing.
@@ -4090,25 +4131,23 @@ useEffect(() => {
     1
   );
 
-  setFrameSizes(
-    (current) => {
-      // Protect against the image load
-      // racing with a saved size.
-      if (current[key]) {
-        return current;
-      }
-
-      return {
-        ...current,
-        [key]: {
-          width:
-            naturalWidth * scale,
-          height:
-            naturalHeight * scale,
-        },
-      };
+  setFrameSizes((current) => {
+    // Protect against the image load
+    // racing with a saved size.
+    if (current[key]) {
+      return current;
     }
-  );
+
+    return {
+      ...current,
+      [key]: {
+        width:
+          naturalWidth * scale,
+        height:
+          naturalHeight * scale,
+      },
+    };
+  });
 };
 
   const handleVideoMetadata = (
@@ -4266,18 +4305,14 @@ useEffect(() => {
         {/* CANVAS */}
 
         <div
-          ref={
-            canvasRef
-          }
-          className="absolute left-0 top-0 will-change-transform"
-          style={{
-            transform:
-              `translate3d(${INITIAL_CAMERA.x}px, ${INITIAL_CAMERA.y}px, 0) scale(${INITIAL_CAMERA.scale})`,
-            transformOrigin:
-              "0 0",
-          }}
-          
-        >
+  ref={canvasRef}
+  className="absolute left-0 top-0"
+  style={{
+    transform:
+      `translate(${INITIAL_CAMERA.x}px, ${INITIAL_CAMERA.y}px) scale(${INITIAL_CAMERA.scale})`,
+    transformOrigin: "0 0",
+  }}
+>
 
 
 
@@ -4329,7 +4364,7 @@ const renderedProjectHeight =
         projectElementRefs.current[project.id] =
           element;
       }}
-      className="absolute cursor-grab active:cursor-grabbing"
+      className="absolute cursor-grab active:cursor-grabbing overflow-visible"
       style={{
         left: position.x,
         top: position.y,
@@ -4337,7 +4372,24 @@ width: renderedProjectWidth,
 height: renderedProjectHeight,
         zIndex:
           projectZIndexes[project.id] ?? 0,
+          contentVisibility:
+  hoveredProjectId === project.id
+    ? "visible"
+    : "auto",
+containIntrinsicSize: `${renderedProjectWidth}px ${renderedProjectHeight}px`,
+
+filter:
+  activeClassification &&
+  !project.classifications.includes(activeClassification)
+    ? "blur(8px)"
+    : "none",
+opacity:
+  activeClassification &&
+  !project.classifications.includes(activeClassification)
+    ? 0.45
+    : 1,
       }}
+
       onPointerDown={(e) =>
         handleProjectPointerDown(
           e,
@@ -4377,6 +4429,15 @@ height: renderedProjectHeight,
   style={{
   width: "100%",
   height: "100%",
+
+  transform:
+    hoveredProjectId === project.id
+      ? "scale(1.012)"
+      : "scale(1)",
+
+  transformOrigin: "center center",
+
+  transition: "transform 800ms ease-out",
 }}
 >
   <div
@@ -4386,8 +4447,11 @@ height: renderedProjectHeight,
     top: PROJECT_PADDING,
     width: contentWidth,
     height: contentHeight,
+
     transform: `scale(${projectScale})`,
+
     transformOrigin: "top left",
+    
   }}
 >
 
@@ -4502,23 +4566,24 @@ style={{
                         }
                       />
                     ) : (
-                      <img
-                        src={frame.src}
-                        alt={frame.title}
-                        className="block h-auto w-full"
-style={{
-  borderRadius:
-    FRAME_RADIUS / projectScale,
-}}
-                        draggable={false}
-                        onLoad={(e) =>
-                          handleImageLoad(
-                            project.id,
-                            frame.id,
-                            e.currentTarget
-                          )
-                        }
-                      />
+                  <img
+                    src={frame.src}
+                    alt={frame.title}
+                    decoding="async"
+                    fetchPriority="high"
+                    className="block h-auto w-full"
+                    style={{
+                      borderRadius: FRAME_RADIUS / projectScale,
+                    }}
+                    draggable={false}
+                    onLoad={(e) =>
+                      handleImageLoad(
+                        project.id,
+                        frame.id,
+                        e.currentTarget
+                      )
+                    }
+                  />
                     ))}
 
                   {/* RESIZE HANDLE */}
