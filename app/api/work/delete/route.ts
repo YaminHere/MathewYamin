@@ -2,246 +2,137 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { v2 as cloudinary } from "cloudinary";
 
-export async function POST(request: Request) {
+cloudinary.config({
+  cloud_name:
+    process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:
+    process.env.CLOUDINARY_API_KEY,
+  api_secret:
+    process.env.CLOUDINARY_API_SECRET,
+});
+
+export async function POST(
+  request: Request
+) {
   const session = await auth();
 
   if (!session?.user) {
     return NextResponse.json(
-      { error: "Unauthorized" },
+      {
+        error: "Unauthorized",
+      },
       { status: 401 }
     );
   }
 
   try {
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const {
-  projectId,
-  type = "project",
-  src,
-} = body;
+      projectId,
+      type = "project",
+      src,
+      assetId,
+    } = body;
 
     if (
       typeof projectId !== "string" ||
       !projectId.trim()
     ) {
       return NextResponse.json(
-        { error: "Missing projectId" },
+        {
+          error:
+            "Missing projectId",
+        },
         { status: 400 }
       );
     }
 
-   /*
- * FRAME DELETE
- */
-/*
- * FRAME DELETE
- */
-if (type === "frame") {
+    /*
+     * ----------------------------------------
+     * FRAME DELETE
+     * ----------------------------------------
+     */
+
+    if (type === "frame") {
+  const {
+    frameId,
+    assetId,
+  } = body;
+
   if (
-    typeof src !== "string" ||
-    !src
+    typeof frameId !== "string" ||
+    !frameId.trim()
   ) {
     return NextResponse.json(
       {
         error:
-          "Missing frame src",
+          "Missing frameId",
       },
       { status: 400 }
     );
   }
 
-  try {
-    const parsedUrl = new URL(
-      src,
-      "http://localhost"
-    );
-
-    const pathname =
-      parsedUrl.pathname;
-
-    /*
-     * Frame files must live somewhere
-     * inside /public/work/
-     */
-    const workPrefix = "/work/";
-
-    if (
-      !pathname.startsWith(
-        workPrefix
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid frame path",
-        },
-        { status: 400 }
-      );
-    }
-
-    /*
-     * Remove "/work/".
-     *
-     * Example:
-     * /work/procan-eats/packaging.jpg
-     *
-     * becomes:
-     * procan-eats/packaging.jpg
-     */
-    const relativePath =
-      pathname.slice(
-        workPrefix.length
-      );
-
-    const pathParts =
-      relativePath.split("/");
-
-    /*
-     * Need at least:
-     * [project folder, filename]
-     */
-    if (
-      pathParts.length < 2
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid frame path",
-        },
-        { status: 400 }
-      );
-    }
-
-    /*
-     * Reject empty or traversal segments.
-     */
-    if (
-      pathParts.some(
-        (part) =>
-          !part ||
-          part === "." ||
-          part === ".."
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid frame path",
-        },
-        { status: 400 }
-      );
-    }
-
-    const frameProjectId =
-      pathParts[0];
-
-    const fileName =
-      pathParts
-        .slice(1)
-        .join("/");
-
-    /*
-     * Extra protection against
-     * filesystem traversal.
-     */
-    if (
-      !frameProjectId ||
-      !fileName ||
-      fileName.includes("\\") ||
-      fileName.includes("..")
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid frame path",
-        },
-        { status: 400 }
-      );
-    }
-
-    const filePath =
-      path.join(
-        process.cwd(),
-        "public",
-        "work",
-        frameProjectId,
-        fileName
-      );
-
-    /*
-     * Final containment check.
-     */
-    const workRoot =
-      path.resolve(
-        process.cwd(),
-        "public",
-        "work"
-      );
-
-    const resolvedFilePath =
-      path.resolve(filePath);
-
-    if (
-      !resolvedFilePath.startsWith(
-        workRoot +
-          path.sep
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid frame path",
-        },
-        { status: 400 }
-      );
-    }
-
-    try {
-  await fs.unlink(
-    resolvedFilePath
-  );
-} catch (error: any) {
   if (
-    error?.code !== "ENOENT"
+    !/^[a-zA-Z0-9_-]+$/.test(
+      projectId
+    )
   ) {
-    throw error;
+    return NextResponse.json(
+      {
+        error:
+          "Invalid projectId",
+      },
+      { status: 400 }
+    );
   }
-}
 
-/*
- * Also remove the frame from the
- * project's project.json.
- *
- * The frame may belong to a different
- * project folder than projectId because
- * some older frames use legacy/moved paths.
- */
-const projectJsonPath =
-  path.join(
-    process.cwd(),
-    "public",
-    "work",
-    projectId,
-    "project.json"
-  );
-
-try {
-  const projectJson =
-    await fs.readFile(
-      projectJsonPath,
-      "utf8"
+  const projectJsonPath =
+    path.join(
+      process.cwd(),
+      "public",
+      "work",
+      projectId,
+      "project.json"
     );
 
-  const project =
-    JSON.parse(projectJson);
+  let project;
 
+  try {
+    const projectJson =
+      await fs.readFile(
+        projectJsonPath,
+        "utf8"
+      );
+
+    project =
+      JSON.parse(projectJson);
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Project not found",
+      },
+      { status: 404 }
+    );
+  }
+
+  /*
+   * Remove the frame from project.json
+   * if it exists there.
+   *
+   * Cloudinary-only frames may not exist
+   * in project.json, because the resolver
+   * can discover them directly from Cloudinary.
+   */
   if (Array.isArray(project.frames)) {
     project.frames =
       project.frames.filter(
-        (frame: any) =>
-          frame.src !== src
+        (item: any) =>
+          item.id !== frameId
       );
 
     await fs.writeFile(
@@ -254,42 +145,68 @@ try {
       "utf8"
     );
   }
-} catch (error: any) {
+
+  /*
+   * Delete the actual Cloudinary asset.
+   *
+   * For Cloudinary-discovered frames,
+   * frame.id is the Cloudinary asset_id.
+   */
   if (
-    error?.code !== "ENOENT"
+    typeof assetId === "string" &&
+    assetId.trim()
   ) {
-    throw error;
+    try {
+      const deleteResult =
+        await cloudinary.api
+          .delete_resources_by_asset_ids(
+            [assetId],
+            {
+              invalidate: true,
+            }
+          );
+
+      console.log(
+        "CLOUDINARY FRAME DELETE:",
+        {
+          projectId,
+          frameId,
+          assetId,
+          deleteResult,
+        }
+      );
+    } catch (error) {
+      console.error(
+  "CLOUDINARY FRAME DELETE FAILED:",
+  error
+);
+
+return NextResponse.json(
+  {
+    error:
+      error instanceof Error
+        ? error.message
+        : String(error),
+  },
+  { status: 500 }
+);
+    }
   }
+
+  return NextResponse.json({
+    success: true,
+    projectId,
+    frameId,
+    assetId,
+  });
 }
-
-return NextResponse.json({
-  success: true,
-  projectId,
-  src,
-});
-
-  } catch (error) {
-    console.error(
-      "Failed to delete frame:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          "Invalid frame path",
-      },
-      { status: 400 }
-    );
-  }
-}
-
 
     /*
-     * Only allow a simple project ID.
-     * This prevents values such as:
-     * ../../something
+     * ----------------------------------------
+     * PROJECT DELETE
+     * ----------------------------------------
      */
+
     if (
       !/^[a-zA-Z0-9_-]+$/.test(
         projectId
@@ -304,18 +221,18 @@ return NextResponse.json({
       );
     }
 
-    const projectPath = path.join(
-      process.cwd(),
-      "public",
-      "work",
-      projectId
-    );
+    const projectPath =
+      path.join(
+        process.cwd(),
+        "public",
+        "work",
+        projectId
+      );
 
-    /*
-     * Make sure it actually exists.
-     */
     try {
-      await fs.access(projectPath);
+      await fs.access(
+        projectPath
+      );
     } catch {
       return NextResponse.json(
         {
@@ -327,10 +244,8 @@ return NextResponse.json({
     }
 
     /*
-     * Remove the entire project directory.
-     *
-     * This also removes all frame/media files
-     * inside the project.
+     * Remove the entire local project
+     * directory.
      */
     await fs.rm(
       projectPath,
@@ -346,14 +261,14 @@ return NextResponse.json({
     });
   } catch (error) {
     console.error(
-      "Failed to delete project:",
+      "Failed to delete:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Failed to delete project",
+          "Failed to delete",
       },
       { status: 500 }
     );

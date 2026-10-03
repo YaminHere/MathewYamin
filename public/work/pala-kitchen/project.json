@@ -7,33 +7,21 @@
     "illustration"
   ],
   "position": {
-    "x": 1011.4690337572338,
-    "y": 381.6270575583996
+    "x": 975.7085174640121,
+    "y": 296.682315693048
   },
   "frames": [
     {
       "id": "campaign",
-      "title": "Campaign",
+      "title": "Campaignasds",
       "type": "image",
-      "src": "/work/pala-kitchen/campaign.jpg",
-      "position": {
-        "x": 338.31841366888847,
-        "y": 0.6115132290532728
-      },
-      "width": 450.82445215112057,
-      "height": 563.5305651889007
-    },
-    {
-      "id": "packaging",
-      "title": "Illustration",
-      "type": "image",
-      "src": "/work/pala-kitchen/packaging.jpg",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1790776498/campaign_ar2ziv.jpg",
       "position": {
         "x": 0,
         "y": 0
       },
-      "width": 317.143586034735,
-      "height": 563.619307789991
+      "width": 450.82445215112057,
+      "height": 563.5305651889007
     }
   ],
   "scale": 0.7552989941511915

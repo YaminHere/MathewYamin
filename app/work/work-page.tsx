@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { projectManifest } from "@/data/project-manifest";
+import { resolveProjectMedia } from "@/lib/resolve-project-media";
 
 type ProjectFrame = {
   id: string;
@@ -680,6 +681,17 @@ const [newProjectClassifications, setNewProjectClassifications] =
   const [projectZIndexes, setProjectZIndexes] =
   useState<Record<string, number>>({});
 
+
+  const [uploadingFrameMedia, setUploadingFrameMedia] =
+  useState(false);
+
+const [uploadProgress, setUploadProgress] =
+  useState({
+    current: 0,
+    total: 0,
+  });
+
+
     const projectsRef = useRef<Project[]>([]);
 const projectPositionsRef =
   useRef<Record<string, { x: number; y: number }>>({});
@@ -1041,11 +1053,12 @@ const deleteProject = async (
     y: number;
   }
 ) => {
-  const project = projects.find(
+  const project =
+  projectsRef.current.find(
     (project) => project.id === projectId
   );
 
-  if (!project) return;
+if (!project) return;
 
   const position =
   savedPosition ??
@@ -1086,6 +1099,11 @@ const deleteProject = async (
     projectId,
     position,
   }
+);
+
+console.log(
+  "FRAMES BEING SAVED:",
+  frames
 );
 
   try {
@@ -1151,111 +1169,23 @@ const saveAllProjects = async () => {
 
   try {
     const projectsToSave =
-      projectsRef.current
-        .map((project) => {
-          const position =
-            projectPositionsRef.current[
-              project.id
-            ] ??
-            project.position;
+  projectsRef.current.map(
+    (project) => {
+      const position =
+        projectPositionsRef.current[
+          project.id
+        ] ??
+        project.position;
 
-          const savedProject =
-            savedProjectsRef.current[
-              project.id
-            ];
-
-          const positionChanged =
-            !savedProject ||
-            position.x !==
-              savedProject.position.x ||
-            position.y !==
-              savedProject.position.y;
-
-          const scaleChanged =
-  !savedProject ||
-  (projectScalesRef.current[
-    project.id
-  ] ?? 1) !==
-    (savedProject.scale ?? 1);
-
-const framesChanged =
-  !savedProject ||
-  project.frames.length !==
-    savedProject.frames.length ||
-  project.frames.some((frame) => {
-    const savedFrame =
-      savedProject.frames.find(
-        (item) =>
-          item.id === frame.id
-      );
-
-    if (!savedFrame) {
-      return true;
+      return {
+        project,
+        position,
+        positionChanged: true,
+        scaleChanged: true,
+        framesChanged: true,
+      };
     }
-
-    const frameKey =
-      `${project.id}:${frame.id}`;
-
-    const currentPosition =
-      framePositionsRef.current[
-        frameKey
-      ] ?? frame.position;
-
-    const currentSize =
-      frameSizes[frameKey];
-
-    const savedPosition =
-      savedFrame.position;
-
-    const positionChanged =
-      currentPosition.x !==
-        savedPosition.x ||
-      currentPosition.y !==
-        savedPosition.y;
-
-    const sizeChanged =
-      currentSize &&
-      (
-        currentSize.width !==
-          savedFrame.width ||
-        currentSize.height !==
-          savedFrame.height
-      );
-
-    const contentChanged =
-      frame.title !==
-        savedFrame.title ||
-      frame.type !==
-        savedFrame.type ||
-      frame.src !==
-        savedFrame.src;
-
-    return (
-      positionChanged ||
-      !!sizeChanged ||
-      contentChanged
-    );
-  });
-
-return {
-  project,
-  position,
-  positionChanged,
-  scaleChanged,
-  framesChanged,
-};
-        })
-        .filter(
-  ({
-    positionChanged,
-    scaleChanged,
-    framesChanged,
-  }) =>
-    positionChanged ||
-    scaleChanged ||
-    framesChanged
-);
-
+  );
     console.log(
       "PROJECTS TO SAVE:",
       projectsToSave.map(
@@ -1394,36 +1324,70 @@ useEffect(() => {
     } =
       await projectsResponse.json();
 
-    const loadedProjects =
+    const loadedProjectData =
   await Promise.all(
     projectIds.map(
       async (projectId: string) => {
-        const response =
+        const projectResponse =
           await fetch(
             `/work/${projectId}/project.json`
           );
 
-        if (!response.ok) {
+        if (!projectResponse.ok) {
           throw new Error(
             `Failed to load project: ${projectId}`
           );
         }
 
-        return (await response.json()) as Project;
+        const project =
+          (await projectResponse.json()) as Project;
+
+        const mediaResponse =
+          await fetch(
+            `/api/cloudinary/${projectId}`
+          );
+
+        if (!mediaResponse.ok) {
+          throw new Error(
+            `Failed to load Cloudinary media: ${projectId}`
+          );
+        }
+
+        const { media } =
+          await mediaResponse.json();
+
+        const resolvedProject =
+          resolveProjectMedia(
+            project,
+            media
+          );
+
+        return {
+          project,
+          resolvedProject,
+        };
       }
     )
   );
 
-    setProjects(
-      loadedProjects
-    );
+const loadedProjects =
+  loadedProjectData.map(
+    ({ resolvedProject }) =>
+      resolvedProject
+  );
 
-    savedProjectsRef.current =
+setProjects(
+  loadedProjects
+);
+
+savedProjectsRef.current =
   Object.fromEntries(
-    loadedProjects.map((project) => [
-      project.id,
-      structuredClone(project),
-    ])
+    loadedProjectData.map(
+      ({ project }) => [
+        project.id,
+        structuredClone(project),
+      ]
+    )
   );
 
     const initialProjectScales =
@@ -2587,10 +2551,12 @@ const deleteFrame = async (
               "application/json",
           },
           body: JSON.stringify({
-            projectId,
-            type: "frame",
-            src: frame.src,
-          }),
+  projectId,
+  type: "frame",
+  frameId: frame.id,
+  src: frame.src,
+  assetId: frame.id,
+}),
         }
       );
 
@@ -4437,7 +4403,7 @@ opacity:
 
   transformOrigin: "center center",
 
-  transition: "transform 800ms ease-out",
+  transition: "transform 300ms ease-out",
 }}
 >
   <div
@@ -5233,13 +5199,27 @@ style={{
 
     <button
   type="button"
+  disabled={uploadingFrameMedia}
   onClick={(e) => {
     e.stopPropagation();
     createFrame(project.id);
   }}
-  className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-left text-xs transition-opacity hover:opacity-60 dark:border-white/10"
+  className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-left text-xs transition-opacity hover:opacity-60 disabled:cursor-wait disabled:opacity-50 dark:border-white/10"
 >
-  + FRAME
+  {uploadingFrameMedia ? (
+    <span className="flex items-center gap-2">
+      <span
+        className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent"
+        aria-hidden="true"
+      />
+
+      {uploadProgress.total > 1
+        ? `Uploading ${uploadProgress.current} / ${uploadProgress.total}…`
+        : "Uploading…"}
+    </span>
+  ) : (
+    "+ FRAME"
+  )}
 </button>
 
     {/* DONE */}
@@ -5294,32 +5274,40 @@ editingFrameTitle === frameKey
 >
   {editingFrameTitle === frameKey ? (
     <input
-      autoFocus
-      value={frame.title}
-      onChange={(e) =>
-        handleFrameTitleChange(
-          project.id,
-          frame.id,
-          e.target.value
-        )
-      }
-      onPointerDown={(e) => {
-  e.stopPropagation();
-}}
-      onBlur={() =>
-        setEditingFrameTitle(null)
-      }
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.currentTarget.blur();
-        }
+  autoFocus
+  value={frame.title}
+  onChange={(e) =>
+    handleFrameTitleChange(
+      project.id,
+      frame.id,
+      e.target.value
+    )
+  }
+  onPointerDown={(e) => {
+    e.stopPropagation();
+  }}
+  onMouseDown={(e) => {
+    e.stopPropagation();
+  }}
+  onClick={(e) => {
+    e.stopPropagation();
+  }}
+  onBlur={() => {
+    setEditingFrameTitle(null);
+  }}
+  onKeyDown={(e) => {
+    e.stopPropagation();
 
-        if (e.key === "Escape") {
-          setEditingFrameTitle(null);
-        }
-      }}
-      className="w-auto min-w-[40px] border-none bg-transparent p-0 text-[8px] uppercase tracking-[0.16em] outline-none"
-    />
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    }
+
+    if (e.key === "Escape") {
+      setEditingFrameTitle(null);
+    }
+  }}
+  className="w-auto min-w-[40px] border-none bg-transparent p-0 text-[8px] uppercase tracking-[0.16em] outline-none"
+/>
   ) : (
     frame.title
   )}
@@ -5332,6 +5320,24 @@ editingFrameTitle === frameKey
        )}
 </div>
 </div>
+
+
+{uploadingFrameMedia && (
+  <div className="pointer-events-none fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/10 bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/90">
+    <div className="flex items-center gap-2 text-xs">
+      <span
+        className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent"
+        aria-hidden="true"
+      />
+
+      <span>
+        {uploadProgress.total > 1
+          ? `Uploading ${uploadProgress.current} / ${uploadProgress.total}…`
+          : "Uploading…"}
+      </span>
+    </div>
+  </div>
+)}
 
 {/* ZOOM CONTROLS */}
 
@@ -5406,6 +5412,7 @@ editingFrameTitle === frameKey
 
 
       {/* HIDDEN FRAME MEDIA INPUT */}
+      
 
       <input
   ref={frameFileInputRef}
@@ -5451,12 +5458,19 @@ editingFrameTitle === frameKey
           project.id === projectId
       );
 
+      setUploadingFrameMedia(true);
+setUploadProgress({
+  current: 0,
+  total: files.length,
+});
+
     if (!project) {
       throw new Error(
         "Project not found"
       );
     }
 
+    
     // NEW FRAME CREATION
     if (
       selection.startsWith("new:")
@@ -5467,6 +5481,11 @@ editingFrameTitle === frameKey
         index++
       ) {
         const file = files[index];
+
+        setUploadProgress({
+  current: index + 1,
+  total: files.length,
+});
 
         let type: ProjectFrame["type"];
 
@@ -5559,7 +5578,7 @@ editingFrameTitle === frameKey
         }
 
         const frameId =
-          `frame-${Date.now()}-${index}`;
+  result.assetId;
 
         const frameIndex =
           currentProject.frames.length;
@@ -5654,6 +5673,11 @@ editingFrameTitle === frameKey
         frameId,
       ] = selection.split(":");
 
+      setUploadProgress({
+  current: 1,
+  total: 1,
+});
+
       const formData =
         new FormData();
 
@@ -5716,6 +5740,13 @@ editingFrameTitle === frameKey
       );
     }
 
+        setUploadingFrameMedia(false);
+
+    setUploadProgress({
+      current: 0,
+      total: 0,
+    });
+
     setSelectingFrameMedia(null);
     input.value = "";
   } catch (error) {
@@ -5723,6 +5754,13 @@ editingFrameTitle === frameKey
       "FRAME UPLOAD ERROR:",
       error
     );
+
+    setUploadingFrameMedia(false);
+
+    setUploadProgress({
+      current: 0,
+      total: 0,
+    });
 
     setSelectingFrameMedia(null);
     input.value = "";

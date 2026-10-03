@@ -9,33 +9,21 @@
     "illustration"
   ],
   "position": {
-    "x": 704.9560257186533,
-    "y": 448.8785429830864
+    "x": 805.8728264978772,
+    "y": 434.2728404075239
   },
   "frames": [
     {
-      "id": "campaign",
-      "title": "Campaign",
+      "id": "81545cf40d7bd6569a9f257a251e5a01",
+      "title": "ChatGPT_Image_Jul_11_2026_12_26_58_AM_ltcpiv",
       "type": "image",
-      "src": "/work/base-eleven/campaign.jpg",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791016082/ChatGPT_Image_Jul_11_2026_12_26_58_AM_ltcpiv.png",
       "position": {
         "x": 0,
         "y": 0
       },
-      "width": 405.6,
-      "height": 507
-    },
-    {
-      "id": "packaging",
-      "title": "Visual",
-      "type": "image",
-      "src": "/work/base-eleven/packaging.jpg",
-      "position": {
-        "x": 487.147140287356,
-        "y": 10.326658694132645
-      },
-      "width": 485.2674839812878,
-      "height": 862.4047133797886
+      "width": 333.3333333333333,
+      "height": 500
     }
   ],
   "scale": 0.25

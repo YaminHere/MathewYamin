@@ -1,7 +1,15 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name:
+    process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:
+    process.env.CLOUDINARY_API_KEY,
+  api_secret:
+    process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(
   request: Request
@@ -30,92 +38,91 @@ export async function POST(
       !projectId
     ) {
       return NextResponse.json(
-        { error: "Missing projectId" },
+        {
+          error:
+            "Missing projectId",
+        },
         { status: 400 }
       );
     }
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "Missing file" },
+        {
+          error: "Missing file",
+        },
         { status: 400 }
       );
     }
 
     if (file.size === 0) {
       return NextResponse.json(
-        { error: "File is empty" },
+        {
+          error:
+            "File is empty",
+        },
         { status: 400 }
       );
     }
 
-    const projectPath =
-      path.join(
-        process.cwd(),
-        "public",
-        "work",
-        projectId
-      );
-
-    await fs.mkdir(
-      projectPath,
-      { recursive: true }
-    );
-
-    const extension =
-      path.extname(file.name);
-
-    const baseName =
-      path
-        .basename(
-          file.name,
-          extension
-        )
-        .replace(
-          /[^a-zA-Z0-9-_]/g,
-          "-"
-        )
-        .replace(
-          /-+/g,
-          "-"
-        )
-        .replace(
-          /^-|-$/g,
-          ""
-        )
-        .toLowerCase();
-
-    const safeBaseName =
-      baseName || "frame";
-
-    const fileName =
-      `${Date.now()}-${safeBaseName}${extension.toLowerCase()}`;
-
-    const filePath =
-      path.join(
-        projectPath,
-        fileName
-      );
-
     const bytes =
-      await file.arrayBuffer();
+      Buffer.from(
+        await file.arrayBuffer()
+      );
 
-    await fs.writeFile(
-      filePath,
-      Buffer.from(bytes)
-    );
+    const uploadResult =
+      await new Promise<any>(
+        (
+          resolve,
+          reject
+        ) => {
+          const uploadStream =
+            cloudinary.uploader.upload_stream(
+              {
+                asset_folder:
+                  `portfolio/work/${projectId}`,
+                resource_type:
+                  "auto",
+                use_filename: true,
+                unique_filename: true,
+              },
+              (
+                error,
+                result
+              ) => {
+                if (error) {
+                  reject(error);
+                  return;
+                }
 
-    const publicUrl =
-      `/work/${projectId}/${fileName}`;
+                resolve(result);
+              }
+            );
+
+          uploadStream.end(bytes);
+        }
+      );
 
     return NextResponse.json({
       success: true,
-      fileName,
-      publicUrl,
+      assetId:
+        uploadResult.asset_id,
+      publicId:
+        uploadResult.public_id,
+      resourceType:
+        uploadResult.resource_type,
+      format:
+        uploadResult.format,
+      publicUrl:
+        uploadResult.secure_url,
+      width:
+        uploadResult.width,
+      height:
+        uploadResult.height,
     });
   } catch (error) {
     console.error(
-      "Failed to upload frame:",
+      "Failed to upload frame to Cloudinary:",
       error
     );
 

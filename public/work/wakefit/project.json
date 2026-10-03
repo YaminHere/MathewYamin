@@ -1,0 +1,27 @@
+{
+  "id": "wakefit",
+  "title": "Wakefit",
+  "year": 2026,
+  "classifications": [
+    "brand"
+  ],
+  "position": {
+    "x": 1416.9938230071195,
+    "y": 209.4274195463258
+  },
+  "scale": 1.0664084092711148,
+  "frames": [
+    {
+      "id": "7e785a429c937617f85101074635497b",
+      "title": "wakefit_uxaudit.mp4",
+      "type": "video",
+      "src": "https://res.cloudinary.com/deqidbavz/video/upload/v1791025049/file_s0jliz.mp4",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "width": 370.17598421635216,
+      "height": 208.2239911216981
+    }
+  ]
+}
