@@ -8,8 +8,10 @@ import {
   type WheelEvent,
 } from "react";
 
+import { useSearchParams } from "next/navigation";
 import { projectManifest } from "@/data/project-manifest";
 import { resolveProjectMedia } from "@/lib/resolve-project-media";
+import Link from "next/link";
 
 type ProjectFrame = {
   id: string;
@@ -557,6 +559,9 @@ export default function WorkPage({
 }: {
   isAdmin: boolean;
 }) {
+  const searchParams =
+    useSearchParams();
+
   const viewportRef =
     useRef<HTMLDivElement>(null);
 
@@ -671,6 +676,9 @@ const [newProjectClassifications, setNewProjectClassifications] =
 
   const [selectingFrameMedia, setSelectingFrameMedia] =
   useState<string | null>(null);
+
+  const [hoveredProjectHeaderId, setHoveredProjectHeaderId] =
+  useState<string | null>(null)
 
   const [hoveredEditProject, setHoveredEditProject] =
   useState<string | null>(null);
@@ -1474,6 +1482,95 @@ for (const project of loadedProjects) {
     console.error
   );
 }, []);
+
+
+useEffect(() => {
+  const projectId =
+    searchParams.get("project");
+
+  if (!projectId) {
+    return;
+  }
+
+  if (projects.length === 0) {
+    return;
+  }
+
+  const project =
+    projects.find(
+      (item) =>
+        item.id === projectId
+    );
+
+  if (!project) {
+    return;
+  }
+
+  const viewport =
+    viewportRef.current;
+
+  if (!viewport) {
+    return;
+  }
+
+  const rect =
+    viewport.getBoundingClientRect();
+
+  const position =
+    physicsPositionsRef.current[
+      project.id
+    ] ??
+    projectPositionsRef.current[
+      project.id
+    ] ??
+    project.position;
+
+  const size =
+    getScaledProjectSize(
+      project,
+      frameSizes,
+      framePositions,
+      projectScales
+    );
+
+  const projectCenterX =
+    position.x +
+    size.width / 2;
+
+  const projectCenterY =
+    position.y +
+    size.height / 2;
+
+ const targetScale = Math.min(
+  MAX_SCALE,
+  Math.max(
+    MIN_SCALE,
+    (rect.height * 0.7) /
+      size.height
+  )
+);
+
+  targetCamera.current = {
+    x:
+      rect.width / 2 -
+      projectCenterX *
+        targetScale,
+
+    y:
+      rect.height / 2 -
+      projectCenterY *
+        targetScale,
+
+    scale:
+      targetScale,
+  };
+}, [
+  searchParams,
+  projects,
+  frameSizes,
+  framePositions,
+  projectScales,
+]);
 
   // --------------------------------------------------
   // RESOLVE ACTIVE COLLAGE COLLISIONS
@@ -4918,14 +5015,19 @@ style={{
   {/* PROJECT HEADERS */}
 {projects.map((project) => (
   <div
-    key={`header:${project.id}`}
-    ref={(element) => {
-      projectHeaderRefs.current[project.id] =
-        element;
-    }}
-    className="pointer-events-auto absolute left-0 top-0 z-50"
-  >
-    <div className="flex min-w-0 items-center">
+  key={`header:${project.id}`}
+  ref={(element) => {
+    projectHeaderRefs.current[project.id] = element;
+  }}
+  className="pointer-events-auto absolute left-0 top-0 z-50"
+  onMouseEnter={() => {
+    setHoveredProjectHeaderId(project.id)
+  }}
+  onMouseLeave={() => {
+    setHoveredProjectHeaderId(null)
+  }}
+>
+    <div className="group flex min-w-0 items-center">
 
   {/* TITLE + CLASSIFICATIONS — FLEXIBLE */}
 <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -4980,6 +5082,16 @@ style={{
   <span className="ml-auto shrink-0 text-[9px] text-black/30 dark:text-white/30">
     {project.year}
   </span>
+
+ {/* VIEW PROJECT */}
+<Link
+  href={`/work/${encodeURIComponent(project.id)}`}
+  onPointerDown={(e) => e.stopPropagation()}
+  onClick={(e) => e.stopPropagation()}
+  className="ml-3 shrink-0 rounded-full bg-black px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-70"
+>
+  View Project ↗
+</Link>
 
 
   {/* EDIT + DELETE — FIXED, RIGHT ALIGNED */}

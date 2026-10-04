@@ -9,7 +9,8 @@ import {
     MorphingDialogClose,
     MorphingDialogContainer,
 } from '@/components/ui/morphing-dialog'
-import { ProjectData } from '../utils'
+import { CanvasProject } from '../../work/project-library'
+import Link from 'next/link'
 
 const VARIANTS_CONTAINER = {
     hidden: { opacity: 0 },
@@ -110,7 +111,11 @@ function ProjectVideo({ src }: ProjectVideoProps) {
     )
 }
 
-export function ProjectsList({ projects }: { projects: ProjectData[] }) {
+export function ProjectsList({
+    projects,
+}: {
+    projects: CanvasProject[]
+}) {
     return (
         <motion.div
             className="grid grid-cols-1 gap-6 sm:grid-cols-2"
@@ -118,33 +123,54 @@ export function ProjectsList({ projects }: { projects: ProjectData[] }) {
             initial="hidden"
             animate="visible"
         >
-            {projects.map((project) => (
-                <motion.div
-                    key={project.id}
-                    className="space-y-2"
-                    variants={VARIANTS_SECTION}
-                    transition={TRANSITION_SECTION}
+            {projects.map((project) => {
+    const featuredFrame =
+    project.homepage?.frameId
+        ? project.frames?.find(
+              (frame) =>
+                  frame.id ===
+                  project.homepage?.frameId
+          )
+        : project.frames?.[0];
+
+if (!featuredFrame) {
+    return null;
+}
+
+    return (
+        <motion.div
+            key={project.id}
+            className="space-y-2"
+            variants={VARIANTS_SECTION}
+            transition={TRANSITION_SECTION}
+        >
+            <div className="relative rounded-2xl bg-zinc-50/40 p-1 ring-1 ring-zinc-200/50 ring-inset dark:bg-zinc-950/40 dark:ring-zinc-800/50">
+                <ProjectVideo
+                    src={featuredFrame.src}
+                />
+            </div>
+
+            <div className="px-1">
+                <Link
+                    className="font-base group relative inline-flex items-center gap-1.5 font-[450] text-zinc-900 dark:text-zinc-50"
+                    href={`/work?project=${encodeURIComponent(project.id)}`}
                 >
-                    <div className="relative rounded-2xl bg-zinc-50/40 p-1 ring-1 ring-zinc-200/50 ring-inset dark:bg-zinc-950/40 dark:ring-zinc-800/50">
-                        <ProjectVideo src={project.video} />
-                    </div>
-                    <div className="px-1">
-                        <a
-                            className="font-base group relative inline-flex items-center gap-1.5 font-[450] text-zinc-900 dark:text-zinc-50"
-                            href={project.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            {project.name}
-                            <ArrowUpRight className="h-4 w-4 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" />
-                            <span className="absolute bottom-0.5 left-0 block h-[1px] w-full max-w-0 bg-zinc-900 transition-all duration-200 group-hover:max-w-full"></span>
-                        </a>
-                        <p className="text-base text-zinc-600 dark:text-zinc-400">
-                            {project.description}
-                        </p>
-                    </div>
-                </motion.div>
-            ))}
+                    {project.title}
+
+                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" />
+
+                    <span className="absolute bottom-0.5 left-0 block h-[1px] w-full max-w-0 bg-zinc-900 transition-all duration-200 group-hover:max-w-full"></span>
+                </Link>
+
+                {project.homepage?.description && (
+                    <p className="text-base text-zinc-600 dark:text-zinc-400">
+                        {project.homepage.description}
+                    </p>
+                )}
+            </div>
+        </motion.div>
+    )
+})}
         </motion.div>
     )
 }

@@ -1,11 +1,18 @@
-import { getProjects } from './projects/utils'
+import { getCanvasProjects } from './work/project-library'
 import { HomeContent } from './home-content'
 
 export default async function Personal() {
-  const projects = await getProjects()
+    const projects = await getCanvasProjects()
 
-  // Show only last 2 projects (newest) on homepage
-  const selectedProjects = projects.slice(-2)
+    const selectedProjects = projects.filter(
+        (project) =>
+            project.homepage?.featured === true
+    )
 
-  return <HomeContent projects={selectedProjects} />
+    return (
+        <HomeContent
+            projects={selectedProjects}
+            allProjects={projects}
+        />
+    )
 }

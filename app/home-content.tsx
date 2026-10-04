@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { Spotlight } from '@/components/ui/spotlight'
 import { Magnetic } from '@/components/ui/magnetic'
 import Link from 'next/link'
+import { CanvasPreview } from './work/canvas-preview'
 import { AnimatedBackground } from '@/components/ui/animated-background'
 import {
     WORK_EXPERIENCE,
@@ -13,7 +14,7 @@ import {
     PHONE,
 } from './data'
 import { ProjectsList } from './projects/(list)/projects-list'
-import { ProjectData } from './projects/utils'
+import { CanvasProject } from './work/project-library'
 
 const VARIANTS_CONTAINER = {
     hidden: { opacity: 0 },
@@ -70,7 +71,13 @@ function MagneticSocialLink({
     )
 }
 
-export function HomeContent({ projects }: { projects: ProjectData[] }) {
+export function HomeContent({
+    projects,
+    allProjects,
+}: {
+    projects: CanvasProject[]
+    allProjects: CanvasProject[]
+}) {
     return (
         <motion.main
             className="space-y-24"
@@ -88,6 +95,19 @@ export function HomeContent({ projects }: { projects: ProjectData[] }) {
                     </p>
                 </div>
             </motion.section>
+
+
+
+<div className="mt-16">
+    <div className="mb-5 flex items-center justify-between">
+        <h3 className="text-lg font-medium">
+            Portfolio
+        </h3>
+    </div>
+
+    <CanvasPreview projects={allProjects} />
+</div>
+
 
             <motion.section
                 variants={VARIANTS_SECTION}
