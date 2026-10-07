@@ -104,7 +104,17 @@ if (
   project.year = projectYear;
 }
 
+console.log(
+  "FRAMES RECEIVED:",
+  frames.map((frame: any) => ({
+    id: frame.id,
+    title: frame.title,
+    type: frame.type,
+    src: frame.src,
+  }))
+);
     if (Array.isArray(frames)) {
+      
   project.frames = frames.map(
     (editedFrame: any) => {
       const existingFrame =

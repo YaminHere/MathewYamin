@@ -15,7 +15,11 @@ export function LayoutShell({
     pathname === "/work" ||
     pathname === "/figma-test";
 
-  if (isCanvasPage) {
+  const isProjectPage =
+  pathname.startsWith("/work/") &&
+  pathname !== "/work";
+
+  if (isCanvasPage || isProjectPage) {
     return <>{children}</>;
   }
 

@@ -662,6 +662,16 @@ const [newProjectYear, setNewProjectYear] =
 const [newProjectClassifications, setNewProjectClassifications] =
   useState<string[]>(["brand"]);
 
+  const [projectHeaderWidths, setProjectHeaderWidths] =
+  useState<Record<string, number>>({});
+
+  const [projectHeaderModes, setProjectHeaderModes] =
+  useState<
+    Record<
+      string,
+      "full" | "short" | "arrow"
+    >
+  >({});
 
     const [hoveredProjectId, setHoveredProjectId] =
   useState<string | null>(null);
@@ -743,9 +753,12 @@ const savedProjectsRef =
   const frameElementRefs =
   useRef<Record<string, HTMLDivElement | null>>({});
 
+  const activePointers = useRef<
+  Map<number, { x: number; y: number }>
+>(new Map());
 
 
-  projectsRef.current = projects;
+projectsRef.current = projects;
 projectPositionsRef.current = projectPositions;
 physicsPositionsRef.current = physicsPositions;
 projectScalesRef.current = projectScales;
@@ -753,6 +766,15 @@ framePositionsRef.current = framePositions;
 
 projectZIndexesRef.current = projectZIndexes;
 
+
+  const pinchStart = useRef<{
+  distance: number;
+  scale: number;
+  midpointX: number;
+  midpointY: number;
+  worldX: number;
+  worldY: number;
+} | null>(null);
 
   const [unlockedProjects, setUnlockedProjects] =
     useState<
@@ -1572,6 +1594,65 @@ useEffect(() => {
   projectScales,
 ]);
 
+
+useEffect(() => {
+  if (projects.length === 0) {
+    return;
+  }
+
+  if (
+    typeof window === "undefined" ||
+    window.innerWidth >= 768
+  ) {
+    return;
+  }
+
+  const frame = requestAnimationFrame(() => {
+    fitProjectsToMobileViewport();
+  });
+
+  return () => {
+    cancelAnimationFrame(frame);
+  };
+}, [projects.length, Object.keys(frameSizes).length]);
+
+
+useEffect(() => {
+  const observers: ResizeObserver[] = [];
+
+  Object.entries(projectHeaderRefs.current).forEach(
+    ([projectId, element]) => {
+      if (!element) return;
+
+      const observer = new ResizeObserver(
+        ([entry]) => {
+          const width = entry.contentRect.width;
+
+          setProjectHeaderWidths((current) => {
+            if (current[projectId] === width) {
+              return current;
+            }
+
+            return {
+              ...current,
+              [projectId]: width,
+            };
+          });
+        }
+      );
+
+      observer.observe(element);
+      observers.push(observer);
+    }
+  );
+
+  return () => {
+    observers.forEach((observer) =>
+      observer.disconnect()
+    );
+  };
+}, [projects]);
+
   // --------------------------------------------------
   // RESOLVE ACTIVE COLLAGE COLLISIONS
   // --------------------------------------------------
@@ -2091,6 +2172,37 @@ const updateScreenSpaceLabels = () => {
       header.style.width =
         `${boundaryRect.width}px`;
 
+         // ------------------------------------------------
+  // VIEW PROJECT LABEL MODE
+  // ------------------------------------------------
+
+  const width =
+    boundaryRect.width;
+
+  let mode:
+    "full" |
+    "short" |
+    "arrow";
+
+  if (width < 180) {
+    mode = "arrow";
+  } else if (width < 260) {
+    mode = "short";
+  } else {
+    mode = "full";
+  }
+
+  setProjectHeaderModes((current) => {
+    if (current[project.id] === mode) {
+      return current;
+    }
+
+    return {
+      ...current,
+      [project.id]: mode,
+    };
+  });
+
       header.style.transform =
         `translate3d(${x}px, ${y}px, 0)`;
     }
@@ -2222,19 +2334,106 @@ useEffect(() => {
 
 
   // --------------------------------------------------
-  // CANVAS PAN
-  // --------------------------------------------------
+// CANVAS PAN + MOBILE PINCH ZOOM
+// --------------------------------------------------
 
-  const handlePointerDown = (
-    e: PointerEvent<HTMLDivElement>
-  ) => {
-    if (e.button !== 0) return;
+const getPointerDistance = (
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+) => {
+  return Math.hypot(
+    b.x - a.x,
+    b.y - a.y
+  );
+};
 
-    const viewport =
-      viewportRef.current;
+const getPointerMidpoint = (
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+) => {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  };
+};
 
-    if (!viewport) return;
+const handlePointerDown = (
+  e: PointerEvent<HTMLDivElement>
+) => {
+  if (e.button !== 0) return;
 
+  const viewport =
+    viewportRef.current;
+
+  if (!viewport) return;
+
+  // Track this pointer
+  activePointers.current.set(
+    e.pointerId,
+    {
+      x: e.clientX,
+      y: e.clientY,
+    }
+  );
+
+  const pointers =
+    Array.from(
+      activePointers.current.values()
+    );
+
+  // ------------------------------------------------
+  // TWO FINGER PINCH START
+  // ------------------------------------------------
+
+  if (
+    e.pointerType === "touch" &&
+    pointers.length === 2
+  ) {
+    setDragging(false);
+
+    const [a, b] = pointers;
+
+    const distance =
+      getPointerDistance(a, b);
+
+    const midpoint =
+      getPointerMidpoint(a, b);
+
+    const currentScale =
+      targetCamera.current.scale;
+
+    const worldX =
+      (midpoint.x -
+        targetCamera.current.x) /
+      currentScale;
+
+    const worldY =
+      (midpoint.y -
+        targetCamera.current.y) /
+      currentScale;
+
+    pinchStart.current = {
+      distance,
+      scale: currentScale,
+      midpointX: midpoint.x,
+      midpointY: midpoint.y,
+      worldX,
+      worldY,
+    };
+
+    // Capture both touch pointers
+    viewport.setPointerCapture(
+      e.pointerId
+    );
+
+    return;
+  }
+
+  // ------------------------------------------------
+  // FIRST POINTER / NORMAL PAN
+  // ------------------------------------------------
+
+  if (pointers.length === 1) {
     setDragging(true);
 
     dragStart.current = {
@@ -2244,24 +2443,101 @@ useEffect(() => {
 
     cameraStart.current = {
       x:
-        targetCamera.current
-          .x,
+        targetCamera.current.x,
 
       y:
-        targetCamera.current
-          .y,
+        targetCamera.current.y,
     };
 
     viewport.setPointerCapture(
       e.pointerId
     );
-  };
+  }
+};
 
-  const handlePointerMove = (
-    e: PointerEvent<HTMLDivElement>
-  ) => {
-    if (!dragging) return;
+const handlePointerMove = (
+  e: PointerEvent<HTMLDivElement>
+) => {
+  if (
+    !activePointers.current.has(
+      e.pointerId
+    )
+  ) {
+    return;
+  }
 
+  activePointers.current.set(
+    e.pointerId,
+    {
+      x: e.clientX,
+      y: e.clientY,
+    }
+  );
+
+  const pointers =
+    Array.from(
+      activePointers.current.values()
+    );
+
+  // ------------------------------------------------
+  // PINCH ZOOM
+  // ------------------------------------------------
+
+  if (
+    e.pointerType === "touch" &&
+    pointers.length >= 2 &&
+    pinchStart.current
+  ) {
+    const [a, b] = pointers;
+
+    const distance =
+      getPointerDistance(a, b);
+
+    const midpoint =
+      getPointerMidpoint(a, b);
+
+    const start =
+      pinchStart.current;
+
+    if (start.distance <= 0) {
+      return;
+    }
+
+    const zoomRatio =
+      distance / start.distance;
+
+    const nextScale = Math.min(
+      MAX_SCALE,
+      Math.max(
+        MIN_SCALE,
+        start.scale * zoomRatio
+      )
+    );
+
+    targetCamera.current.scale =
+      nextScale;
+
+    // Keep the original world point
+    // underneath the pinch midpoint.
+    targetCamera.current.x =
+      midpoint.x -
+      start.worldX * nextScale;
+
+    targetCamera.current.y =
+      midpoint.y -
+      start.worldY * nextScale;
+
+    return;
+  }
+
+  // ------------------------------------------------
+  // NORMAL PAN
+  // ------------------------------------------------
+
+  if (
+    pointers.length === 1 &&
+    dragging
+  ) {
     targetCamera.current.x =
       cameraStart.current.x +
       (e.clientX -
@@ -2271,27 +2547,85 @@ useEffect(() => {
       cameraStart.current.y +
       (e.clientY -
         dragStart.current.y);
-  };
+  }
+};
 
-  const handlePointerUp = (
-    e: PointerEvent<HTMLDivElement>
-  ) => {
+const handlePointerUp = (
+  e: PointerEvent<HTMLDivElement>
+) => {
+  activePointers.current.delete(
+    e.pointerId
+  );
+
+  const viewport =
+    viewportRef.current;
+
+  if (
+    viewport &&
+    viewport.hasPointerCapture(
+      e.pointerId
+    )
+  ) {
+    viewport.releasePointerCapture(
+      e.pointerId
+    );
+  }
+
+  const remaining =
+    Array.from(
+      activePointers.current.values()
+    );
+
+  // ------------------------------------------------
+  // END PINCH
+  // ------------------------------------------------
+
+  if (
+    remaining.length < 2
+  ) {
+    pinchStart.current = null;
+  }
+
+  // ------------------------------------------------
+  // CONTINUE PAN WITH ONE
+  // REMAINING FINGER
+  // ------------------------------------------------
+
+  if (
+    e.pointerType === "touch" &&
+    remaining.length === 1
+  ) {
+    const remainingPointer =
+      remaining[0];
+
+    dragStart.current = {
+      x: remainingPointer.x,
+      y: remainingPointer.y,
+    };
+
+    cameraStart.current = {
+      x:
+        targetCamera.current.x,
+
+      y:
+        targetCamera.current.y,
+    };
+
+    setDragging(true);
+
+    return;
+  }
+
+  // ------------------------------------------------
+  // COMPLETELY FINISHED
+  // ------------------------------------------------
+
+  if (
+    remaining.length === 0
+  ) {
     setDragging(false);
-
-    const viewport =
-      viewportRef.current;
-
-    if (
-      viewport &&
-      viewport.hasPointerCapture(
-        e.pointerId
-      )
-    ) {
-      viewport.releasePointerCapture(
-        e.pointerId
-      );
-    }
-  };
+  }
+};
 
 
  // --------------------------------------------------
@@ -3407,38 +3741,149 @@ useEffect(() => {
   // --------------------------------------------------
 
   const resetView = () => {
-  attractionPoint.current =
-    null;
+  attractionPoint.current = null;
+  inactiveTargets.current = {};
+  focalProjectId.current = null;
 
-  inactiveTargets.current =
-    {};
-
-  focalProjectId.current =
-    null;
-
-  /*
-   * Animate every project back to
-   * its saved All Work position.
-   */
-  activeTargets.current =
-    Object.fromEntries(
-      projects.map((project) => [
-        project.id,
-        projectPositionsRef.current[
-          project.id
-        ] ??
+  activeTargets.current = Object.fromEntries(
+    projects.map((project) => [
+      project.id,
+      projectPositionsRef.current[project.id] ??
         project.position,
-      ])
-    );
-
-  setActiveClassification(
-    null
+    ])
   );
 
+  setActiveClassification(null);
+
+  // Mobile: fit the actual project composition
+  if (
+    typeof window !== "undefined" &&
+    window.innerWidth < 768
+  ) {
+    requestAnimationFrame(() => {
+      fitProjectsToMobileViewport();
+    });
+
+    return;
+  }
+
+  // Desktop: preserve existing behavior
   targetCamera.current = {
     ...INITIAL_CAMERA,
   };
 };
+
+
+const fitProjectsToMobileViewport = () => {
+  const viewport = viewportRef.current;
+
+  if (!viewport || projectsRef.current.length === 0) {
+    return;
+  }
+
+  const projects = projectsRef.current;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  projects.forEach((project) => {
+    const position =
+      projectPositionsRef.current[project.id] ??
+      project.position;
+
+    const size = getProjectSize(
+      project,
+      frameSizes,
+      framePositions
+    );
+
+    const scale =
+      projectScalesRef.current[project.id] ?? 1;
+
+    const width =
+      size.width * scale;
+
+    const height =
+      size.height * scale;
+
+    minX = Math.min(minX, position.x);
+    minY = Math.min(minY, position.y);
+
+    maxX = Math.max(
+      maxX,
+      position.x + width
+    );
+
+    maxY = Math.max(
+      maxY,
+      position.y + height
+    );
+  });
+
+  if (
+    !Number.isFinite(minX) ||
+    !Number.isFinite(minY) ||
+    !Number.isFinite(maxX) ||
+    !Number.isFinite(maxY)
+  ) {
+    return;
+  }
+
+  const viewportWidth =
+    viewport.clientWidth;
+
+  const viewportHeight =
+    viewport.clientHeight;
+
+  const boundsWidth =
+    maxX - minX;
+
+  const boundsHeight =
+    maxY - minY;
+
+  const padding = 40;
+
+  const scaleX =
+    (viewportWidth - padding * 2) /
+    boundsWidth;
+
+  const scaleY =
+    (viewportHeight - padding * 2) /
+    boundsHeight;
+
+  const scale = Math.min(
+    MAX_SCALE,
+    Math.max(
+      MIN_SCALE,
+      Math.min(scaleX, scaleY)
+    )
+  );
+
+  const boundsCenterX =
+    minX + boundsWidth / 2;
+
+  const boundsCenterY =
+    minY + boundsHeight / 2;
+
+  targetCamera.current = {
+    scale,
+    x:
+      viewportWidth / 2 -
+      boundsCenterX * scale,
+    y:
+      viewportHeight / 2 -
+      boundsCenterY * scale,
+  };
+
+  camera.current = {
+    ...targetCamera.current,
+  };
+
+  applyTransform();
+};
+
 
   // --------------------------------------------------
   // CATEGORY NAVIGATION
@@ -4276,67 +4721,86 @@ const anchorY =
 
       {/* HEADER */}
 
-      <header className="pointer-events-none fixed left-0 right-0 top-0 z-50 flex items-center justify-between p-6">
+      <header className="pointer-events-none fixed left-0 right-0 top-0 z-50 flex items-start justify-between p-4 sm:p-6">
 
-        <div className="pointer-events-auto text-sm font-medium">
-          MATHEW YAMIN
-        </div>
+  {/* BACK HOME */}
 
-        <nav className="pointer-events-auto hidden items-center gap-5 rounded-full bg-white/80 px-5 py-3 text-xs backdrop-blur-md dark:bg-zinc-900/80 md:flex">
-
-  {/* CANVAS NAVIGATION */}
-
-  <button
-    onClick={resetView}
-    className="transition-opacity hover:opacity-50"
+  <Link
+    href="/"
+    className="pointer-events-auto flex items-center gap-2.5 transition-opacity hover:opacity-50"
   >
-    ALL WORK
-  </button>
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-black/15 text-[11px] font-medium tracking-[-0.05em] dark:border-white/15 sm:h-8 sm:w-8 sm:text-[12px]">
+      /
+    </span>
 
-  {sections.map((section) => (
+    <span className="flex flex-col leading-none">
+      <span className="text-[7px] uppercase tracking-[0.14em] text-black/40 dark:text-white/40 sm:text-[8px]">
+        Back to
+      </span>
+
+      <span className="mt-1 text-[12px] font-medium sm:text-sm">
+        MATHEW YAMIN
+      </span>
+    </span>
+  </Link>
+
+
+  {/* DESKTOP NAV */}
+
+  <nav className="pointer-events-auto hidden items-center gap-5 rounded-full bg-white/80 px-5 py-3 text-xs backdrop-blur-md dark:bg-zinc-900/80 md:flex">
+
     <button
-      key={section.id}
-      onClick={() => goToSection(section)}
+      onClick={resetView}
       className="transition-opacity hover:opacity-50"
     >
-      {section.label.toUpperCase()}
+      ALL WORK
     </button>
-  ))}
 
-  {/* ADMIN ACTIONS */}
-
-  {isAdmin && (
-    <>
-      <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
-
+    {sections.map((section) => (
       <button
-        type="button"
-        onClick={() => {
-          setCreatingProject(true);
-        }}
+        key={section.id}
+        onClick={() => goToSection(section)}
         className="transition-opacity hover:opacity-50"
       >
-        NEW PROJECT
+        {section.label.toUpperCase()}
       </button>
+    ))}
 
-      <button
-        type="button"
-        onClick={saveAllProjects}
-        disabled={isSaving}
-        className="transition-opacity hover:opacity-50 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        {isSaving ? "SAVING..." : "SAVE"}
-      </button>
-    </>
-  )}
+    {isAdmin && (
+      <>
+        <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
 
-</nav>
+        <button
+          type="button"
+          onClick={() => {
+            setCreatingProject(true);
+          }}
+          className="transition-opacity hover:opacity-50"
+        >
+          NEW PROJECT
+        </button>
 
-        <div className="pointer-events-auto text-xs">
-          2026
-        </div>
+        <button
+          type="button"
+          onClick={saveAllProjects}
+          disabled={isSaving}
+          className="transition-opacity hover:opacity-50 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          {isSaving ? "SAVING..." : "SAVE"}
+        </button>
+      </>
+    )}
 
-      </header>
+  </nav>
+
+
+  {/* YEAR */}
+
+  <div className="pointer-events-auto text-[10px] text-black/50 dark:text-white/50 sm:text-xs">
+    2026
+  </div>
+
+</header>
 
 
       {/* CANVAS VIEWPORT */}
@@ -5027,10 +5491,10 @@ style={{
     setHoveredProjectHeaderId(null)
   }}
 >
-    <div className="group flex min-w-0 items-center">
+    <div className="group flex min-w-0 items-center gap-1 sm:gap-2">
 
   {/* TITLE + CLASSIFICATIONS — FLEXIBLE */}
-<div className="flex min-w-0 flex-1 items-center gap-4">
+<div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
 
   {/* PROJECT TITLE — FLEXIBLE, SECOND PRIORITY */}
   <div
@@ -5045,7 +5509,7 @@ style={{
         projectTitleRefs.current[project.id] =
           element;
       }}
-      className="block min-w-0 w-full overflow-hidden whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.14em] text-black/70 dark:text-white/70"
+      className="block min-w-0 w-full overflow-hidden whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.12em] text-black/70 dark:text-white/70 sm:text-[11px] sm:tracking-[0.14em]"
     >
       {project.title}
     </div>
@@ -5066,7 +5530,7 @@ style={{
         (classification) => (
           <span
             key={classification}
-            className="shrink-0 text-[8px] uppercase tracking-[0.12em] text-black/30 dark:text-white/30"
+            className="shrink-0 text-[7px] uppercase tracking-[0.1em] text-black/30 dark:text-white/30 sm:text-[8px] sm:tracking-[0.12em]"
           >
             {classification}
           </span>
@@ -5079,7 +5543,7 @@ style={{
 
 
   {/* YEAR — FIXED, RIGHT ALIGNED */}
-  <span className="ml-auto shrink-0 text-[9px] text-black/30 dark:text-white/30">
+  <span className="ml-auto shrink-0 text-[8px] text-black/30 dark:text-white/30 sm:text-[9px]">
     {project.year}
   </span>
 
@@ -5090,7 +5554,11 @@ style={{
   onClick={(e) => e.stopPropagation()}
   className="ml-3 shrink-0 rounded-full bg-black px-2.5 py-1 text-[8px] uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-70"
 >
-  View Project ↗
+  {projectHeaderModes[project.id] === "arrow"
+    ? "↗"
+    : projectHeaderModes[project.id] === "short"
+      ? "View ↗"
+      : "View Project ↗"}
 </Link>
 
 
@@ -5451,36 +5919,65 @@ editingFrameTitle === frameKey
   </div>
 )}
 
+
+{/* MOBILE CANVAS NAVIGATION */}
+
+<div className="pointer-events-auto fixed bottom-4 left-4 right-4 z-50 md:hidden">
+  <div className="flex items-center gap-1 overflow-x-auto rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-md dark:bg-zinc-900/90">
+
+    <button
+      onClick={resetView}
+      className={`shrink-0 rounded-full px-3 py-2 text-[9px] uppercase tracking-[0.1em] transition-colors ${
+        !activeClassification
+          ? "bg-black text-white dark:bg-white dark:text-black"
+          : "text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5"
+      }`}
+    >
+      All
+    </button>
+
+    {sections.map((section) => (
+      <button
+        key={section.id}
+        onClick={() => goToSection(section)}
+        className={`shrink-0 rounded-full px-3 py-2 text-[9px] uppercase tracking-[0.1em] transition-colors ${
+          activeClassification === section.id
+            ? "bg-black text-white dark:bg-white dark:text-black"
+            : "text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5"
+        }`}
+      >
+        {section.label}
+      </button>
+    ))}
+
+  </div>
+</div>
+
+
 {/* ZOOM CONTROLS */}
 
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-1 rounded-full bg-white/90 dark:bg-zinc-900/90 p-1 shadow-sm backdrop-blur-md">
+      <div className="fixed bottom-[4.5rem] right-4 z-50 flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-md dark:bg-zinc-900/90 sm:bottom-6 sm:right-6">
 
         <button
-          onClick={() =>
-            zoom(-0.1)
-          }
-          className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-black/5"
-        >
-          −
-        </button>
+  onClick={() => zoom(-0.1)}
+  className="flex h-8 w-8 items-center justify-center rounded-full text-sm hover:bg-black/5 sm:h-9 sm:w-9"
+>
+  −
+</button>
 
-        <button
-          onClick={
-            resetView
-          }
-          className="flex h-9 w-9 items-center justify-center rounded-full text-xs hover:bg-black/5 dark:hover:bg-white/5"
-        >
-          ⌖
-        </button>
+<button
+  onClick={resetView}
+  className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] hover:bg-black/5 dark:hover:bg-white/5 sm:h-9 sm:w-9"
+>
+  ⌖
+</button>
 
-        <button
-          onClick={() =>
-            zoom(0.1)
-          }
-          className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-black/5"
-        >
-          +
-        </button>
+<button
+  onClick={() => zoom(0.1)}
+  className="flex h-8 w-8 items-center justify-center rounded-full text-sm hover:bg-black/5 sm:h-9 sm:w-9"
+>
+  +
+</button>
 
       </div>
 
