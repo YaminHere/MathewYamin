@@ -1338,6 +1338,7 @@ useEffect(() => {
 
 useEffect(() => {
   const loadProjects = async () => {
+    console.log("LOAD PROJECTS RUN");
     const projectsResponse =
       await fetch(
         "/api/work/projects"
@@ -1372,38 +1373,15 @@ useEffect(() => {
         const project =
           (await projectResponse.json()) as Project;
 
-        const mediaResponse =
-          await fetch(
-            `/api/cloudinary/${projectId}`
-          );
-
-        if (!mediaResponse.ok) {
-          throw new Error(
-            `Failed to load Cloudinary media: ${projectId}`
-          );
-        }
-
-        const { media } =
-          await mediaResponse.json();
-
-        const resolvedProject =
-          resolveProjectMedia(
-            project,
-            media
-          );
-
-        return {
-          project,
-          resolvedProject,
-        };
+        return project;
       }
     )
   );
 
 const loadedProjects =
   loadedProjectData.map(
-    ({ resolvedProject }) =>
-      resolvedProject
+    (project) =>
+      project
   );
 
 setProjects(
@@ -1413,7 +1391,7 @@ setProjects(
 savedProjectsRef.current =
   Object.fromEntries(
     loadedProjectData.map(
-      ({ project }) => [
+      (project) => [
         project.id,
         structuredClone(project),
       ]
@@ -1498,6 +1476,49 @@ for (const project of loadedProjects) {
     setPhysicsPositions(
       initialPositions
     );
+
+
+    // --------------------------------------------------
+// LOAD CLOUDINARY MEDIA IN BACKGROUND
+// --------------------------------------------------
+
+loadedProjects.forEach(async (project) => {
+  try {
+    const mediaResponse =
+      await fetch(
+        `/api/cloudinary/${project.id}`
+      );
+
+    if (!mediaResponse.ok) {
+      throw new Error(
+        `Failed to load Cloudinary media: ${project.id}`
+      );
+    }
+
+    const { media } =
+      await mediaResponse.json();
+
+    const resolvedProject =
+      resolveProjectMedia(
+        project,
+        media
+      );
+
+    setProjects((current) =>
+      current.map((item) =>
+        item.id === resolvedProject.id
+          ? resolvedProject
+          : item
+      )
+    );
+  } catch (error) {
+    console.error(
+      `Failed to load media for ${project.id}`,
+      error
+    );
+  }
+});
+
   };
 
   loadProjects().catch(
@@ -2029,6 +2050,7 @@ useEffect(() => {
 
   activeTargets.current =
     resolvedLayout;
+    
 }, [
   activeClassification,
   projects,
@@ -2129,6 +2151,149 @@ useEffect(() => {
     );
   };
 }, [projects]);
+
+
+
+
+const updateVideoPlayback = () => {
+  const viewport =
+    viewportRef.current;
+
+  if (!viewport) {
+    return;
+  }
+
+  const rect =
+    viewport.getBoundingClientRect();
+
+  const {
+    x: cameraX,
+    y: cameraY,
+    scale: cameraScale,
+  } = camera.current;
+
+  projectsRef.current.forEach(
+    (project) => {
+      const projectPosition =
+        projectPositionsRef.current[
+          project.id
+        ] ??
+        project.position;
+
+      const projectScale =
+        projectScalesRef.current[
+          project.id
+        ] ?? 1;
+
+      project.frames.forEach(
+        (frame) => {
+          if (frame.type !== "video") {
+            return;
+          }
+
+          const frameKey =
+            `${project.id}:${frame.id}`;
+
+          const element =
+            frameElementRefs.current[
+              frameKey
+            ];
+
+          if (!element) {
+            return;
+          }
+
+          const video =
+            element.querySelector(
+              "video"
+            );
+
+          if (!video) {
+            return;
+          }
+
+          const framePosition =
+            framePositions[
+              frameKey
+            ] ?? {
+              x: 0,
+              y: 0,
+            };
+
+          const frameSize =
+            frameSizes[
+              frameKey
+            ];
+
+          if (!frameSize) {
+            return;
+          }
+
+          const worldX =
+            projectPosition.x +
+            PROJECT_PADDING +
+            framePosition.x *
+              projectScale;
+
+          const worldY =
+            projectPosition.y +
+            PROJECT_PADDING +
+            framePosition.y *
+              projectScale;
+
+          const screenX =
+            cameraX +
+            worldX * cameraScale;
+
+          const screenY =
+            cameraY +
+            worldY * cameraScale;
+
+          const screenWidth =
+            frameSize.width *
+            projectScale *
+            cameraScale;
+
+          const screenHeight =
+            frameSize.height *
+            projectScale *
+            cameraScale;
+
+          const margin = 300;
+
+          const isNearViewport =
+            screenX <
+              rect.width + margin &&
+            screenX +
+              screenWidth >
+              -margin &&
+            screenY <
+              rect.height + margin &&
+            screenY +
+              screenHeight >
+              -margin;
+
+          if (isNearViewport) {
+            if (
+              video.paused
+            ) {
+              video
+                .play()
+                .catch(() => {});
+            }
+          } else {
+            if (
+              !video.paused
+            ) {
+              video.pause();
+            }
+          }
+        }
+      );
+    }
+  );
+};
+
 
 
 // --------------------------------------------------
@@ -2241,6 +2406,8 @@ const updateScreenSpaceLabels = () => {
         `translate3d(${x}px, ${y}px, 0)`;
     });
   });
+
+  updateVideoPlayback();
 };
 
 const applyTransform = () => {
@@ -2421,10 +2588,7 @@ const handlePointerDown = (
       worldY,
     };
 
-    // Capture both touch pointers
-    viewport.setPointerCapture(
-      e.pointerId
-    );
+  
 
     return;
   }
@@ -3821,6 +3985,7 @@ const fitProjectsToMobileViewport = () => {
       position.y + height
     );
   });
+  
 
   if (
     !Number.isFinite(minX) ||
@@ -3880,9 +4045,11 @@ const fitProjectsToMobileViewport = () => {
   camera.current = {
     ...targetCamera.current,
   };
+  
 
   applyTransform();
 };
+
 
 
   // --------------------------------------------------
@@ -4712,6 +4879,7 @@ const anchorY =
   );
 };
 
+
   // --------------------------------------------------
   // RENDER
   // --------------------------------------------------
@@ -5084,6 +5252,7 @@ style={{
                         loop
                         autoPlay
                         playsInline
+                        preload="metadata"
                         onLoadedMetadata={(e) =>
                           handleVideoMetadata(
                             project.id,
@@ -5097,7 +5266,7 @@ style={{
                     src={frame.src}
                     alt={frame.title}
                     decoding="async"
-                    fetchPriority="high"
+                    loading="lazy"
                     className="block h-auto w-full"
                     style={{
                       borderRadius: FRAME_RADIUS / projectScale,

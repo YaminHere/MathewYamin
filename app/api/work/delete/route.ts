@@ -264,74 +264,90 @@ try {
 
 const assetIds: string[] = [];
 
-if (Array.isArray(project.frames)) {
-    for (const frame of project.frames) {
-        /*
-         * Cloudinary-discovered frames use
-         * the Cloudinary asset_id as frame.id.
-         */
-        if (
-            typeof frame.id === "string" &&
-            frame.id.trim()
-        ) {
-            assetIds.push(frame.id);
-        }
+try {
+  const assetFolder =
+    `portfolio/work/${projectId}`;
 
-        /*
-         * Some frames may explicitly store
-         * their Cloudinary asset ID.
-         */
-        if (
-            typeof frame.assetId === "string" &&
-            frame.assetId.trim()
-        ) {
-            assetIds.push(frame.assetId);
+  let nextCursor: string | undefined;
+
+  do {
+    const result =
+      await cloudinary.api.resources_by_asset_folder(
+        assetFolder,
+        {
+          max_results: 500,
+          direction: "asc",
+          ...(nextCursor
+            ? { next_cursor: nextCursor }
+            : {}),
         }
+      );
+
+    for (const resource of result.resources ?? []) {
+      if (
+        typeof resource.asset_id === "string" &&
+        resource.asset_id.trim()
+      ) {
+        assetIds.push(resource.asset_id);
+      }
     }
+
+    nextCursor = result.next_cursor;
+  } while (nextCursor);
+} catch (error) {
+  console.error(
+    "CLOUDINARY PROJECT ASSET LIST FAILED:",
+    error
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    },
+    { status: 500 }
+  );
 }
 
-/*
- * Remove duplicate asset IDs.
- */
 const uniqueAssetIds = [
-    ...new Set(assetIds),
+  ...new Set(assetIds),
 ];
 
 if (uniqueAssetIds.length > 0) {
-    try {
-        const deleteResult =
-            await cloudinary.api
-                .delete_resources_by_asset_ids(
-                    uniqueAssetIds,
-                    {
-                        invalidate: true,
-                    }
-                );
-
-        console.log(
-            "CLOUDINARY PROJECT DELETE:",
-            {
-                projectId,
-                assetIds: uniqueAssetIds,
-                deleteResult,
-            }
-        );
-    } catch (error) {
-        console.error(
-            "CLOUDINARY PROJECT ASSET DELETE FAILED:",
-            error
+  try {
+    const deleteResult =
+      await cloudinary.api
+        .delete_resources_by_asset_ids(
+          uniqueAssetIds,
+          { invalidate: true }
         );
 
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : String(error),
-            },
-            { status: 500 }
-        );
-    }
+    console.log(
+      "CLOUDINARY PROJECT DELETE:",
+      {
+        projectId,
+        assetIds: uniqueAssetIds,
+        deleteResult,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "CLOUDINARY PROJECT ASSET DELETE FAILED:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+      { status: 500 }
+    );
+  }
 }
 
 /*

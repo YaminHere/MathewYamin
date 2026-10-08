@@ -1,0 +1,51 @@
+{
+  "id": "natures-path",
+  "title": "NATURES PATH",
+  "year": 2026,
+  "classifications": [
+    "brand"
+  ],
+  "position": {
+    "x": 1054.2857142857144,
+    "y": 186.42857142857144
+  },
+  "scale": 1,
+  "frames": [
+    {
+      "id": "0e0e078319bf70d8dcbf9b46669665d9",
+      "title": "Frame 37.png",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791487216/file_x9ckmb.png",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "width": 600,
+      "height": 301.3824884792627
+    },
+    {
+      "id": "132503d11a996e48635583ddffaaba2f",
+      "title": "Frame 38.png",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791487218/file_dwqozu.png",
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "width": 600,
+      "height": 301.3824884792627
+    },
+    {
+      "id": "d4e2dedd6d1ba7e7c2163193aa120c19",
+      "title": "Frame 39.png",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791487213/file_w9se6s.png",
+      "position": {
+        "x": 0,
+        "y": 600.0000000000001
+      },
+      "width": 600,
+      "height": 301.47510755992624
+    }
+  ]
+}
