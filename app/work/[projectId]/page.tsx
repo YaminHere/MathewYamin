@@ -108,16 +108,18 @@ export default async function ProjectPage({
     </div>
 )}
 
-            <section className="mx-auto max-w-6xl px-6 pb-32">
-                <div className="space-y-8">
-                    {project.frames.map((frame) => (
-                        <ProjectFrame
-                            key={frame.id}
-                            frame={frame}
-                        />
-                    ))}
-                </div>
-            </section>
+            {!isAdmin && (
+    <section className="mx-auto max-w-6xl px-6 pb-32">
+        <div className="space-y-8">
+            {project.frames.map((frame) => (
+                <ProjectFrame
+                    key={frame.id}
+                    frame={frame}
+                />
+            ))}
+        </div>
+    </section>
+)}
         </main>
     )
 }

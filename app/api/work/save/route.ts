@@ -116,16 +116,30 @@ if (thumbnail === null) {
   thumbnail.src.trim() !== "" &&
   ["image", "video", "gif"].includes(thumbnail.type)
 ) {
-  project.thumbnail = {
+    project.thumbnail = {
     type: thumbnail.type,
     src: thumbnail.src,
+
     ...(typeof thumbnail.width === "number" &&
     thumbnail.width > 0
       ? { width: thumbnail.width }
       : {}),
+
     ...(typeof thumbnail.height === "number" &&
     thumbnail.height > 0
       ? { height: thumbnail.height }
+      : {}),
+
+    ...(typeof thumbnail.assetId === "string"
+      ? { assetId: thumbnail.assetId }
+      : {}),
+
+    ...(typeof thumbnail.publicId === "string"
+      ? { publicId: thumbnail.publicId }
+      : {}),
+
+    ...(typeof thumbnail.resourceType === "string"
+      ? { resourceType: thumbnail.resourceType }
       : {}),
   };
 }
@@ -166,6 +180,19 @@ console.log(
           editedFrame.src ??
           existingFrame?.src ??
           "",
+
+        assetId:
+          editedFrame.assetId ??
+          existingFrame?.assetId,
+
+        publicId:
+          editedFrame.publicId ??
+          existingFrame?.publicId,
+
+        resourceType:
+          editedFrame.resourceType ??
+          existingFrame?.resourceType,
+
         position:
           editedFrame.position ??
           existingFrame?.position ??

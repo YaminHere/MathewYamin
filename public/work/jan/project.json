@@ -6,9 +6,18 @@
     "brand"
   ],
   "position": {
-    "x": 881.5210775518392,
-    "y": 264.596195539363
+    "x": 1241.6664225778857,
+    "y": 252.24125953784946
   },
-  "scale": 0.6916621054552089,
-  "frames": []
+  "scale": 0.25,
+  "frames": [],
+  "thumbnail": {
+    "type": "image",
+    "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791658462/file_a1o7zp.png",
+    "width": 1365,
+    "height": 768,
+    "assetId": "9016ae583e08707e6215ebaef8903733",
+    "publicId": "file_a1o7zp",
+    "resourceType": "image"
+  }
 }

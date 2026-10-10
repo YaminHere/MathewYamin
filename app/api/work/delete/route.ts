@@ -51,6 +51,183 @@ export async function POST(
       );
     }
 
+
+
+    /*
+ * ----------------------------------------
+ * DELETE REPLACED THUMBNAIL ASSET ONLY
+ * ----------------------------------------
+ */
+if (type === "thumbnail-asset") {
+  if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+    return NextResponse.json(
+      { error: "Invalid projectId" },
+      { status: 400 }
+    );
+  }
+
+  if (typeof assetId !== "string" || !assetId.trim()) {
+    return NextResponse.json(
+      { error: "Missing thumbnail assetId" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const lookup = await cloudinary.api.resources_by_asset_ids([
+      assetId,
+    ]);
+
+    const asset = lookup.resources?.[0];
+
+    // Already deleted: nothing else to do.
+    if (!asset) {
+      return NextResponse.json({ success: true });
+    }
+
+    if (asset.asset_folder !== `portfolio/work/${projectId}`) {
+      return NextResponse.json(
+        { error: "Asset does not belong to this project" },
+        { status: 403 }
+      );
+    }
+
+    const result =
+      await cloudinary.api.delete_resources_by_asset_ids(
+        [assetId],
+        { invalidate: true }
+      );
+
+    const deleted = (
+      result as { deleted?: Record<string, string> }
+    ).deleted?.[assetId];
+
+    if (deleted !== "deleted" && deleted !== "not found") {
+      return NextResponse.json(
+        { error: "Cloudinary asset deletion failed" },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("REPLACED THUMBNAIL DELETE FAILED:", error);
+
+    return NextResponse.json(
+      { error: "Failed to delete replaced thumbnail" },
+      { status: 500 }
+    );
+  }
+}
+
+    /*
+     * ----------------------------------------
+     * THUMBNAIL DELETE
+     * ----------------------------------------
+     */
+
+    if (type === "thumbnail") {
+      if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+        return NextResponse.json(
+          { error: "Invalid projectId" },
+          { status: 400 }
+        );
+      }
+
+      const projectJsonPath = path.join(
+        process.cwd(),
+        "public",
+        "work",
+        projectId,
+        "project.json"
+      );
+
+      let project: any;
+
+      try {
+        project = JSON.parse(
+          await fs.readFile(projectJsonPath, "utf8")
+        );
+      } catch {
+        return NextResponse.json(
+          { error: "Project not found" },
+          { status: 404 }
+        );
+      }
+
+      const thumbnail = project.thumbnail;
+
+// Use the ID sent by the UI if project.json has
+// already lost the thumbnail metadata.
+const thumbnailAssetId =
+  typeof assetId === "string" && assetId.trim()
+    ? assetId
+    : thumbnail?.assetId;
+
+if (thumbnailAssetId) {
+  try {
+    // Look up the asset using its asset ID.
+    const lookup = await cloudinary.api.resources_by_asset_ids([
+      thumbnailAssetId,
+    ]);
+
+    const asset = lookup.resources?.[0];
+
+    if (!asset) {
+      return NextResponse.json(
+        { error: "Thumbnail asset not found in Cloudinary" },
+        { status: 404 }
+      );
+    }
+
+    // Confirm the asset belongs to this project.
+    if (asset.asset_folder !== `portfolio/work/${projectId}`) {
+      return NextResponse.json(
+        { error: "Thumbnail does not belong to this project" },
+        { status: 403 }
+      );
+    }
+
+    const result =
+      await cloudinary.api.delete_resources_by_asset_ids(
+        [thumbnailAssetId],
+        { invalidate: true }
+      );
+
+    const deleted = (
+      result as { deleted?: Record<string, string> }
+    ).deleted?.[thumbnailAssetId];
+
+    if (deleted !== "deleted" && deleted !== "not found") {
+      return NextResponse.json(
+        { error: "Cloudinary thumbnail deletion failed" },
+        { status: 502 }
+      );
+    }
+  } catch (error) {
+    console.error("THUMBNAIL DELETE FAILED:", error);
+
+    return NextResponse.json(
+      { error: "Failed to delete thumbnail from Cloudinary" },
+      { status: 500 }
+    );
+  }
+}
+
+delete project.thumbnail;
+
+await fs.writeFile(
+  projectJsonPath,
+  JSON.stringify(project, null, 2) + "\n",
+  "utf8"
+);
+
+return NextResponse.json({ success: true });
+
+}
+
+
+
     /*
      * ----------------------------------------
      * FRAME DELETE

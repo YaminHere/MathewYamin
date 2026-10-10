@@ -24,7 +24,7 @@ export type CanvasProject = {
     position: {
         x: number
         y: number
-    }
+    }   
     scale?: number
     homepage?: {
         featured?: boolean

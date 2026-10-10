@@ -37,6 +37,9 @@ type ProjectThumbnail = {
   src: string;
   width?: number;
   height?: number;
+  assetId?: string;
+  publicId?: string;
+  resourceType?: string;
 };
 
 type Project = {
@@ -94,17 +97,30 @@ const CLASSIFICATIONS = [
 const getProjectSize = (
   project: Project,
   _frameSizes: Record<string, FrameSize> = {},
-  _framePositions: Record<
-    string,
-    { x: number; y: number }
-  > = {}
+  _framePositions: Record<string, { x: number; y: number }> = {}
 ) => {
   const padding = PROJECT_PADDING;
   const thumbnail = getProjectThumbnail(project);
 
+  const maxWidth = 420;
+  const maxHeight = 300;
+
+  const originalWidth = thumbnail?.width ?? maxWidth;
+  const originalHeight = thumbnail?.height ?? maxHeight;
+
+  // Normalize large thumbnails while preserving aspect ratio.
+  const fitScale = Math.min(
+    1,
+    maxWidth / originalWidth,
+    maxHeight / originalHeight
+  );
+
+  const width = originalWidth * fitScale;
+  const height = originalHeight * fitScale;
+
   return {
-    width: (thumbnail?.width ?? 420) + padding * 2,
-    height: (thumbnail?.height ?? 300) + padding * 2,
+    width: width + padding * 2,
+    height: height + padding * 2,
   };
 };
 
@@ -2872,12 +2888,12 @@ const dy =
     delta / resize.width;
 
   const nextScale = Math.max(
-    0.25,
-    Math.min(
-      3,
-      resize.scale + scaleDelta
-    )
-  );
+  0.25,
+  Math.min(
+    6,
+    resize.scale + scaleDelta
+  )
+);
 
   setProjectScales(
     (current) => ({
@@ -5098,17 +5114,15 @@ opacity:
 >
   <div
   style={{
-    position: "absolute",
-    left: PROJECT_PADDING,
-    top: PROJECT_PADDING,
-    width: contentWidth,
-    height: contentHeight,
-
-    transform: `scale(${projectScale})`,
-
-    transformOrigin: "top left",
-    
-  }}
+  position: "absolute",
+  left: PROJECT_PADDING,
+  top: PROJECT_PADDING,
+  width: contentWidth,
+  height: contentHeight,
+  overflow: "hidden",
+  transform: `scale(${projectScale})`,
+  transformOrigin: "top left",
+}}
 >
 
           {/* PROJECT THUMBNAIL */}
@@ -5128,11 +5142,12 @@ opacity:
   }
 
   const mediaStyle: React.CSSProperties = {
-    display: "block",
-    width: thumbnail.width ?? 420,
-    height: "auto",
-    borderRadius: FRAME_RADIUS / projectScale,
-  };
+  display: "block",
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+  borderRadius: FRAME_RADIUS / projectScale,
+};
 
   if (thumbnail.type === "video") {
     return (
@@ -5697,29 +5712,62 @@ opacity:
     : "UPLOAD THUMBNAIL"}
 </button>
 
+
+
 {project.thumbnail?.src && (
   <button
     type="button"
-    onClick={(e) => {
+    onClick={async (e) => {
       e.stopPropagation();
 
-      setProjects((current) =>
-        current.map((item) =>
-          item.id === project.id
-            ? {
-                ...item,
-                thumbnail: undefined,
-              }
-            : item
-        )
+      const confirmed = window.confirm(
+        "Remove this thumbnail and delete its Cloudinary asset?"
       );
+
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch("/api/work/delete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+  projectId: project.id,
+  type: "thumbnail",
+  assetId: project.thumbnail?.assetId,
+}),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.error || "Failed to remove thumbnail"
+          );
+        }
+
+        setProjects((current) =>
+          current.map((item) =>
+            item.id === project.id
+              ? { ...item, thumbnail: undefined }
+              : item
+          )
+        );
+        
+      } catch (error) {
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Failed to remove thumbnail"
+        );
+      }
     }}
     className="mt-2 w-full rounded-md border border-red-500/20 px-3 py-2 text-left text-xs text-red-600 transition-opacity hover:opacity-60"
   >
     REMOVE THUMBNAIL
   </button>
 )}
-
 
 
     
@@ -6057,10 +6105,13 @@ if (selection.startsWith("thumbnail:")) {
         ? {
             ...item,
             thumbnail: {
-              type: "image",
-              src: result.publicUrl,
-              ...dimensions,
-            },
+  type: "image",
+  src: result.publicUrl,
+  ...dimensions,
+  assetId: result.assetId,
+  publicId: result.publicId,
+  resourceType: result.resourceType,
+},
           }
         : item
     )
