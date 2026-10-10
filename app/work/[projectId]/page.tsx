@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { getCanvasProjects } from '../project-library'
 import { EditableDescription } from './editable-description'
 import { FavoriteButton } from './favorite-button'
+import { FrameManager } from "./frame-manager";
 
 type ProjectPageProps = {
     params: Promise<{
@@ -95,6 +96,17 @@ export default async function ProjectPage({
     />
 </div>
             </section>
+
+
+        {isAdmin && (
+    <div className="mx-auto max-w-6xl px-6">
+        <FrameManager
+            projectId={project.id}
+            initialFrames={project.frames}
+            projectPosition={project.position}
+        />
+    </div>
+)}
 
             <section className="mx-auto max-w-6xl px-6 pb-32">
                 <div className="space-y-8">

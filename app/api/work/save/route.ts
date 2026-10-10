@@ -34,8 +34,9 @@ export async function POST(request: Request) {
   projectScale,
   projectClassifications,
   projectYear,
+  thumbnail,
   frames,
-} = body;
+} = body;    
 
 console.log(
   "SERVER SAVE POSITION:",
@@ -102,6 +103,31 @@ if (
   Number.isInteger(projectYear)
 ) {
   project.year = projectYear;
+}
+
+// SAVE INDEPENDENT PROJECT THUMBNAIL
+
+if (thumbnail === null) {
+  delete project.thumbnail;
+} else if (
+  thumbnail &&
+  typeof thumbnail === "object" &&
+  typeof thumbnail.src === "string" &&
+  thumbnail.src.trim() !== "" &&
+  ["image", "video", "gif"].includes(thumbnail.type)
+) {
+  project.thumbnail = {
+    type: thumbnail.type,
+    src: thumbnail.src,
+    ...(typeof thumbnail.width === "number" &&
+    thumbnail.width > 0
+      ? { width: thumbnail.width }
+      : {}),
+    ...(typeof thumbnail.height === "number" &&
+    thumbnail.height > 0
+      ? { height: thumbnail.height }
+      : {}),
+  };
 }
 
 console.log(

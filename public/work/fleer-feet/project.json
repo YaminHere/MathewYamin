@@ -1,13 +1,13 @@
 {
   "id": "fleer-feet",
-  "title": "fleer feet",
+  "title": "fleet feet",
   "year": 2026,
   "classifications": [
     "brand"
   ],
   "position": {
-    "x": 1747.2599713420077,
-    "y": 190.10180865919625
+    "x": 1558.688542770579,
+    "y": 200.10180865919625
   },
   "scale": 1,
   "frames": [
@@ -22,6 +22,16 @@
       },
       "width": 600,
       "height": 337.22627737226276
+    },
+    {
+      "id": "23616863-1b0c-4b54-be8e-1a2a61ef1c4b",
+      "title": "Frame 36",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791653486/file_nzlili.png",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
     }
   ]
 }

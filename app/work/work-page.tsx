@@ -32,6 +32,13 @@ type FrameSize = {
   height: number;
 };
 
+type ProjectThumbnail = {
+  type: "image" | "video" | "gif";
+  src: string;
+  width?: number;
+  height?: number;
+};
+
 type Project = {
   id: string;
   title: string;
@@ -42,7 +49,18 @@ type Project = {
     y: number;
   };
   scale?: number;
+  thumbnail?: ProjectThumbnail;
   frames: ProjectFrame[];
+};
+
+const getProjectThumbnail = (
+  project: Project
+): ProjectThumbnail | undefined => {
+  if (project.thumbnail?.src) {
+    return project.thumbnail;
+  }
+
+  return undefined;
 };
 
 const sections = [
@@ -51,7 +69,6 @@ const sections = [
   { id: "web", label: "Web" },
   { id: "campaigns", label: "Campaigns" },
   { id: "visual", label: "Visual" },
-  { id: "illustration", label: "Illustration" },
 ];
 
 const MIN_SCALE = 0.3;
@@ -76,59 +93,18 @@ const CLASSIFICATIONS = [
 
 const getProjectSize = (
   project: Project,
-  frameSizes: Record<string, FrameSize> = {},
-  framePositions: Record<
+  _frameSizes: Record<string, FrameSize> = {},
+  _framePositions: Record<
     string,
     { x: number; y: number }
   > = {}
 ) => {
   const padding = PROJECT_PADDING;
-
-  const width =
-    Math.max(
-      ...project.frames.map((frame) => {
-        const position =
-          framePositions[
-            `${project.id}:${frame.id}`
-          ] ?? frame.position;
-
-        const size =
-          frameSizes[
-            `${project.id}:${frame.id}`
-          ] ?? {
-            width: 420,
-            height: 300,
-          };
-
-        return position.x + size.width;
-      }),
-      0
-    ) + padding * 2;
-
-  const height =
-    Math.max(
-      ...project.frames.map((frame) => {
-        const position =
-          framePositions[
-            `${project.id}:${frame.id}`
-          ] ?? frame.position;
-
-        const size =
-          frameSizes[
-            `${project.id}:${frame.id}`
-          ] ?? {
-            width: 420,
-            height: 300,
-          };
-
-        return position.y + size.height;
-      }),
-      0
-    ) + padding * 2;
+  const thumbnail = getProjectThumbnail(project);
 
   return {
-    width,
-    height,
+    width: (thumbnail?.width ?? 420) + padding * 2,
+    height: (thumbnail?.height ?? 300) + padding * 2,
   };
 };
 
@@ -1153,6 +1129,7 @@ console.log(
   projectClassifications:
     project.classifications,
     projectYear: project.year,
+    thumbnail: project.thumbnail ?? null,
   frames,
 }),
       }
@@ -2996,22 +2973,6 @@ const keepEditPopoverOpen = () => {
 };
 
 
-
-const createFrame = (
-  projectId: string
-) => {
-  if (!isAdmin) return;
-
-  if (!unlockedProjects[projectId]) {
-    return;
-  }
-
-  setSelectingFrameMedia(
-    `new:${projectId}`
-  );
-
-  frameFileInputRef.current?.click();
-};
 
 const changeFrameLayer = (
   projectId: string,
@@ -5150,287 +5111,56 @@ opacity:
   }}
 >
 
-          {/* PROJECT FRAMES */}
+          {/* PROJECT THUMBNAIL */}
 
-          {project.frames.map((frame) => {
-            const frameKey =
-              `${project.id}:${frame.id}`;
+{(() => {
+  const thumbnail = getProjectThumbnail(project);
 
-            const framePosition =
-              framePositions[frameKey] ??
-              frame.position;
-
-            const frameSize =
-              frameSizes[frameKey] ??
-              (frame.width && frame.height
-                ? {
-                    width: frame.width,
-                    height: frame.height,
-                  }
-                : {
-                    width: 420,
-                    height: 300,
-                  });
-
-            const isUnlocked =
-              unlockedProjects[project.id];
-
-            return (
-  <div
-    key={frame.id}
-    ref={(element) => {
-      frameElementRefs.current[
-        frameKey
-      ] = element;
-    }}
-
-    onPointerEnter={() => {
-      setHoveredFrameId(frameKey);
-    }}
-
-    onPointerLeave={() => {
-      setHoveredFrameId(null);
-    }}
-                className={`absolute ${
-                  isUnlocked
-                    ? "cursor-move"
-                    : ""
-                }`}
-                onDoubleClick={(e) => {
-                  if (!isAdmin) return;
-                  if (!isUnlocked) return;
-
-                  e.stopPropagation();
-
-                  setEditingFrameTitle(
-                    frameKey
-                  );
-                }}
-                style={{
-                  left: framePosition.x,
-                  top: framePosition.y,
-                  zIndex: frame.zIndex ?? 0,
-                }}
-                onPointerDown={(e) =>
-                  handleFramePointerDown(
-                    e,
-                    project.id,
-                    frame.id
-                  )
-                }
-                onPointerMove={
-                  handleFramePointerMove
-                }
-                onPointerUp={
-                  handleFramePointerUp
-                }
-                onPointerCancel={
-                  handleFramePointerUp
-                }
-              >
-
-                {/* FRAME / MEDIA */}
-
-                <div
-                  className="relative w-fit"
-                  style={{
-                    width:
-                      frameSize.width,
-                  }}
-                >
-                  {frame.src &&
-                    (frame.type ===
-                    "video" ? (
-                      <video
-                        src={frame.src}
-                        className="block h-auto w-full"
-style={{
-  borderRadius:
-    FRAME_RADIUS / projectScale,
-}}
-                        muted
-                        loop
-                        autoPlay
-                        playsInline
-                        preload="metadata"
-                        onLoadedMetadata={(e) =>
-                          handleVideoMetadata(
-                            project.id,
-                            frame.id,
-                            e.currentTarget
-                          )
-                        }
-                      />
-                    ) : (
-                  <img
-                    src={frame.src}
-                    alt={frame.title}
-                    decoding="async"
-                    loading="lazy"
-                    className="block h-auto w-full"
-                    style={{
-                      borderRadius: FRAME_RADIUS / projectScale,
-                    }}
-                    draggable={false}
-                    onLoad={(e) =>
-                      handleImageLoad(
-                        project.id,
-                        frame.id,
-                        e.currentTarget
-                      )
-                    }
-                  />
-                    ))}
-
-                  {/* RESIZE HANDLE */}
-
-                  {isUnlocked && (
-                    <div
-                      className="absolute bottom-[-4px] right-[-4px] z-20 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-black/20 dark:border-white/20 bg-white/95 dark:bg-zinc-800/95 shadow-sm"
-                      style={{
-                        touchAction: "none",
-                        transform:
-                          `scale(${
-                            1 /
-                            (
-                              projectScale *
-                              camera.current.scale
-                            )
-                          })`,
-                        transformOrigin:
-                          "center",
-                      }}
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-
-                        handleFrameResizePointerDown(
-                          e,
-                          project.id,
-                          frame.id
-                        );
-                      }}
-                      onPointerMove={
-                        handleFrameResizePointerMove
-                      }
-                      onPointerUp={
-                        handleFrameResizePointerUp
-                      }
-                      onPointerCancel={
-                        handleFrameResizePointerUp
-                      }
-                      aria-label={`Resize ${frame.title}`}
-                    />
-                  )}
-
-                  {/* DELETE FRAME */}
-
-                  {isUnlocked &&
-  isAdmin &&
-  hoveredFrameId === frameKey && (
-    <div
-      className="absolute right-[-8px] top-[-8px] z-40 flex items-center gap-1"
-      style={{
-        transform:
-          `scale(${
-            1 /
-            (
-              projectScale *
-              camera.current.scale
-            )
-          })`,
-        transformOrigin: "top right",
-      }}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-      }}
-    >
-
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          changeFrameLayer(
-            project.id,
-            frame.id,
-            "back"
-          );
-        }}
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
-        aria-label="Send to back"
+  if (!thumbnail?.src) {
+    return (
+      <div
+        className="flex items-center justify-center rounded-lg border border-dashed border-black/10 text-xs text-black/30 dark:border-white/10 dark:text-white/30"
+        style={{ width: 420, height: 300 }}
       >
-        ⇩
-      </button>
+        No thumbnail
+      </div>
+    );
+  }
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          changeFrameLayer(
-            project.id,
-            frame.id,
-            "backward"
-          );
-        }}
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
-        aria-label="Send backward"
-      >
-        ↓
-      </button>
+  const mediaStyle: React.CSSProperties = {
+    display: "block",
+    width: thumbnail.width ?? 420,
+    height: "auto",
+    borderRadius: FRAME_RADIUS / projectScale,
+  };
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          changeFrameLayer(
-            project.id,
-            frame.id,
-            "forward"
-          );
-        }}
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
-        aria-label="Bring forward"
-      >
-        ↑
-      </button>
+  if (thumbnail.type === "video") {
+    return (
+      <video
+        src={thumbnail.src}
+        className="block h-auto"
+        style={mediaStyle}
+        muted
+        loop
+        autoPlay
+        playsInline
+        preload="metadata"
+      />
+    );
+  }
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          changeFrameLayer(
-            project.id,
-            frame.id,
-            "front"
-          );
-        }}
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[10px] shadow-sm hover:bg-black hover:text-white dark:border-white/10 dark:bg-zinc-800"
-        aria-label="Bring to front"
-      >
-        ⇧
-      </button>
-
-      <button
-        type="button"
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] text-black/60 shadow-sm hover:text-black dark:border-white/10 dark:bg-zinc-800 dark:text-white/60 dark:hover:text-white"
-        onClick={(e) => {
-          e.stopPropagation();
-
-          deleteFrame(
-            project.id,
-            frame.id
-          );
-        }}
-        aria-label={`Delete ${frame.title}`}
-      >
-        ×
-      </button>
-
-    </div>
-  )}
-                </div>
-              </div>
-            );
-          })}
+  return (
+    <img
+      src={thumbnail.src}
+      alt={`${project.title} thumbnail`}
+      className="block h-auto"
+      style={mediaStyle}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+    />
+  );
+})()}
 </div>
           {/* PROJECT RESIZE HANDLE */}
 
@@ -5946,31 +5676,53 @@ style={{
     </div>
 
 
-    <button
+{/* PROJECT THUMBNAIL */}
+
+<button
   type="button"
   disabled={uploadingFrameMedia}
   onClick={(e) => {
     e.stopPropagation();
-    createFrame(project.id);
-  }}
-  className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-left text-xs transition-opacity hover:opacity-60 disabled:cursor-wait disabled:opacity-50 dark:border-white/10"
->
-  {uploadingFrameMedia ? (
-    <span className="flex items-center gap-2">
-      <span
-        className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent"
-        aria-hidden="true"
-      />
 
-      {uploadProgress.total > 1
-        ? `Uploading ${uploadProgress.current} / ${uploadProgress.total}…`
-        : "Uploading…"}
-    </span>
-  ) : (
-    "+ FRAME"
-  )}
+    setSelectingFrameMedia(
+      `thumbnail:${project.id}`
+    );
+
+    frameFileInputRef.current?.click();
+  }}
+  className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-left text-xs transition-opacity hover:opacity-60 disabled:opacity-50 dark:border-white/10"
+>
+  {project.thumbnail?.src
+    ? "REPLACE THUMBNAIL"
+    : "UPLOAD THUMBNAIL"}
 </button>
 
+{project.thumbnail?.src && (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+
+      setProjects((current) =>
+        current.map((item) =>
+          item.id === project.id
+            ? {
+                ...item,
+                thumbnail: undefined,
+              }
+            : item
+        )
+      );
+    }}
+    className="mt-2 w-full rounded-md border border-red-500/20 px-3 py-2 text-left text-xs text-red-600 transition-opacity hover:opacity-60"
+  >
+    REMOVE THUMBNAIL
+  </button>
+)}
+
+
+
+    
     {/* DONE */}
     <button
       type="button"
@@ -6224,11 +5976,9 @@ editingFrameTitle === frameKey
     return;
   }
 
-  const projectId =
-    selection.startsWith("new:")
-      ? selection.slice(4)
-      : selection.split(":")[0];
-
+  const projectId = selection.startsWith("thumbnail:")
+  ? selection.slice("thumbnail:".length)
+  : selection.split(":")[0];
   try {
     const project =
       projectsRef.current.find(
@@ -6248,161 +5998,80 @@ setUploadProgress({
       );
     }
 
-    
-    // NEW FRAME CREATION
-    if (
-      selection.startsWith("new:")
-    ) {
-      for (
-        let index = 0;
-        index < files.length;
-        index++
-      ) {
-        const file = files[index];
 
-        setUploadProgress({
-  current: index + 1,
-  total: files.length,
-});
+    // INDEPENDENT THUMBNAIL UPLOAD
+if (selection.startsWith("thumbnail:")) {
+  const file = files[0];
 
-        let type: ProjectFrame["type"];
+  if (!file.type.startsWith("image/")) {
+    throw new Error(
+      "Please select an image for the thumbnail."
+    );
+  }
 
-        if (
-          file.type ===
-          "application/pdf"
-        ) {
-          type = "pdf";
-        } else if (
-          file.type.startsWith(
-            "video/"
-          )
-        ) {
-          type = "video";
-        } else if (
-          file.type === "image/gif" ||
-          file.name
-            .toLowerCase()
-            .endsWith(".gif")
-        ) {
-          type = "gif";
-        } else if (
-          file.type.startsWith(
-            "image/"
-          )
-        ) {
-          type = "image";
-        } else {
-          console.warn(
-            "Skipping unsupported file:",
-            file.name
-          );
-          continue;
-        }
+  const formData = new FormData();
 
-        const formData =
-          new FormData();
+  formData.append("projectId", projectId);
+  formData.append("file", file);
 
-        formData.append(
-          "projectId",
-          projectId
-        );
-
-        formData.append(
-          "file",
-          file
-        );
-
-        const response =
-          await fetch(
-            "/api/work/upload",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-        const result =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            result.error ||
-              `Upload failed for ${file.name}`
-          );
-        }
-
-        const publicUrl =
-          result.publicUrl;
-
-        if (
-          typeof publicUrl !==
-          "string"
-        ) {
-          throw new Error(
-            `Upload did not return a file URL for ${file.name}`
-          );
-        }
-
-        const currentProject =
-          projectsRef.current.find(
-            (item) =>
-              item.id === projectId
-          );
-
-        if (!currentProject) {
-          throw new Error(
-            "Project no longer exists"
-          );
-        }
-
-        const frameId =
-  result.assetId;
-
-        const frameIndex =
-          currentProject.frames.length;
-
-        const newFrame: ProjectFrame = {
-          id: frameId,
-          title: file.name,
-          type,
-          src: publicUrl,
-          position: {
-            x: 0,
-            y: frameIndex * 40,
-          },
-          width: 420,
-          height: 300,
-        };
-
-        setProjects((current) =>
-          current.map(
-            (project) =>
-              project.id === projectId
-                ? {
-                    ...project,
-                    frames: [
-                      ...project.frames,
-                      newFrame,
-                    ],
-                  }
-                : project
-          )
-        );
-
-        setFramePositions(
-          (current) => ({
-            ...current,
-            [`${projectId}:${frameId}`]:
-              newFrame.position,
-          })
-        );
-
-        console.log(
-          "FRAME UPLOAD SUCCESS:",
-          publicUrl
-        );
-      }
+  const response = await fetch(
+    "/api/work/upload",
+    {
+      method: "POST",
+      body: formData,
     }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || typeof result.publicUrl !== "string") {
+    throw new Error(
+      result.error || "Thumbnail upload failed"
+    );
+  }
+
+  const image = new Image();
+
+  const dimensions = await new Promise<{
+    width: number;
+    height: number;
+  }>((resolve) => {
+    image.onload = () =>
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
+
+    image.onerror = () =>
+      resolve({
+        width: 420,
+        height: 300,
+      });
+
+    image.src = result.publicUrl;
+  });
+
+  setProjects((current) =>
+    current.map((item) =>
+      item.id === projectId
+        ? {
+            ...item,
+            thumbnail: {
+              type: "image",
+              src: result.publicUrl,
+              ...dimensions,
+            },
+          }
+        : item
+    )
+  );
+
+  console.log(
+    "THUMBNAIL UPLOAD SUCCESS:",
+    result.publicUrl
+  );
+}
+
 
     // EXISTING FRAME MEDIA CHANGE
     else {
