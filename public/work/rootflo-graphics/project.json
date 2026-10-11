@@ -1,0 +1,89 @@
+{
+  "id": "rootflo-graphics",
+  "title": "rootflo graphics",
+  "year": 2026,
+  "classifications": [
+    "brand"
+  ],
+  "position": {
+    "x": 1930.1370678819696,
+    "y": -763.2535715495717
+  },
+  "scale": 2.7189183184941252,
+  "frames": [
+    {
+      "id": "cfa9f99e-8952-4752-bffb-bf2547207329",
+      "title": "Frame 48096368",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725449/file_in3hp4.png",
+      "assetId": "9d4b96dc49e471d56af20bd567886813",
+      "publicId": "file_in3hp4",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "c9c3464f-7aee-49c8-8122-ba87832fd239",
+      "title": "Frame 48096371",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725450/file_o4qqfy.png",
+      "assetId": "36f24b80d7f040ee01c77574274ac8fd",
+      "publicId": "file_o4qqfy",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "458e3ba1-b96f-451e-bae1-4c926f6baefa",
+      "title": "Frame 48096406",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725452/file_yuyy8e.png",
+      "assetId": "777008fba5524021bd6e8572562ccef2",
+      "publicId": "file_yuyy8e",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "974dc386-8903-46c5-b107-690816990242",
+      "title": "Frame 48096404",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725453/file_q2wtll.png",
+      "assetId": "e8f522e4fdd1618a2512c621608fc4eb",
+      "publicId": "file_q2wtll",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "8181543f-68ad-4d93-a445-ef6b68a1db4d",
+      "title": "Frame 48096365",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725454/file_iddj7b.png",
+      "assetId": "c60dbd3b720aa3b7b98356841d279f10",
+      "publicId": "file_iddj7b",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "thumbnail": {
+    "type": "image",
+    "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725404/file_csxgem.jpg",
+    "width": 1920,
+    "height": 1800,
+    "assetId": "39bfaa13ef1dbbb357938a59f8b71c69",
+    "publicId": "file_csxgem",
+    "resourceType": "image"
+  }
+}

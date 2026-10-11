@@ -1,0 +1,102 @@
+{
+  "id": "costa-farms",
+  "title": "Costa farms",
+  "year": 2026,
+  "classifications": [
+    "brand"
+  ],
+  "position": {
+    "x": 1869.3210683663178,
+    "y": 178.07970833735354
+  },
+  "scale": 1,
+  "frames": [
+    {
+      "id": "01249c26-1893-43e2-a11c-0e3414173f7a",
+      "title": "costa farms",
+      "type": "video",
+      "src": "https://res.cloudinary.com/deqidbavz/video/upload/v1791724889/file_ygftkt.mp4",
+      "assetId": "787eb8eba18d526f0d3649c87dc638d0",
+      "publicId": "file_ygftkt",
+      "resourceType": "video",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "488179ca-8978-4811-9674-334842f03aa7",
+      "title": "costafarms_slides_page-0002",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724778/file_jkdbco.jpg",
+      "assetId": "ba87146cd456a90f38b70a8199513d2b",
+      "publicId": "file_jkdbco",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "e373f1c8-a3e6-441a-83fd-3c8c4617d096",
+      "title": "costafarms_slides_page-0003",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724777/file_qglghv.jpg",
+      "assetId": "e2b72e9dbebcab1951d14b3443664337",
+      "publicId": "file_qglghv",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "e0bd60b3-d983-438d-9d67-446b51d60453",
+      "title": "costafarms_slides_page-0004",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724775/file_afuf6y.jpg",
+      "assetId": "80e078935ec51e72c7cf52159d53a014",
+      "publicId": "file_afuf6y",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "540983ee-7b2e-45b9-b635-583b5955b4bf",
+      "title": "costafarms_slides_page-0005",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724774/file_lgkngx.jpg",
+      "assetId": "749cfdd9ab1d600da6f35d30aca78e46",
+      "publicId": "file_lgkngx",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "8ab31d69-f79c-4722-af8b-e1f4c8e8d043",
+      "title": "costafarms_slides_page-0006",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724773/file_eynnfk.jpg",
+      "assetId": "a5ed29300a15aac53fb0796596b853cf",
+      "publicId": "file_eynnfk",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "thumbnail": {
+    "type": "video",
+    "src": "https://res.cloudinary.com/deqidbavz/video/upload/v1791724713/file_jzcc0b.mp4",
+    "width": 1352,
+    "height": 1080,
+    "assetId": "cbebd23415cb504f03b2e95b8be64359",
+    "publicId": "file_jzcc0b",
+    "resourceType": "video"
+  }
+}

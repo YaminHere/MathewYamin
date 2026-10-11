@@ -1,0 +1,37 @@
+{
+  "id": "aiwa",
+  "title": "aiwa",
+  "year": 2026,
+  "classifications": [
+    "brand"
+  ],
+  "position": {
+    "x": 1274.6511199319634,
+    "y": -89.25263337369134
+  },
+  "scale": 0.542908939168286,
+  "frames": [
+    {
+      "id": "97d0204f-ec6b-4355-920a-eda6b3a719e1",
+      "title": "Home page",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725170/file_sdesu7.png",
+      "assetId": "c189500013deadaf7e263a5c28d13285",
+      "publicId": "file_sdesu7",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "thumbnail": {
+    "type": "image",
+    "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791725187/file_bxoyko.jpg",
+    "width": 847,
+    "height": 847,
+    "assetId": "2bc3affc64cf1659de2941de340fff7e",
+    "publicId": "file_bxoyko",
+    "resourceType": "image"
+  }
+}

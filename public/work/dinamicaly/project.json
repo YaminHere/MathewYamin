@@ -1,0 +1,37 @@
+{
+  "id": "dinamicaly",
+  "title": "Dinamicaly",
+  "year": 2026,
+  "classifications": [
+    "brand"
+  ],
+  "position": {
+    "x": 860.6415092205941,
+    "y": -3.8287822695063234
+  },
+  "scale": 1,
+  "frames": [
+    {
+      "id": "791ff416-98b8-413c-9395-af95b1cdde8e",
+      "title": "Cover",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724594/file_a72egt.png",
+      "assetId": "28d991ee2883c67b4d16c23bb0cedf61",
+      "publicId": "file_a72egt",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "thumbnail": {
+    "type": "image",
+    "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791724578/file_ur2rvj.png",
+    "width": 1044,
+    "height": 1044,
+    "assetId": "d020d611044f50e4bc10984a3dddb4d6",
+    "publicId": "file_ur2rvj",
+    "resourceType": "image"
+  }
+}

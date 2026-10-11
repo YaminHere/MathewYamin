@@ -1,23 +1,141 @@
 {
   "id": "jan",
-  "title": "jan",
+  "title": "wakefit",
   "year": 2026,
   "classifications": [
     "brand"
   ],
   "position": {
-    "x": 1241.6664225778857,
-    "y": 252.24125953784946
+    "x": 1269.7934897406635,
+    "y": 195.25193129403718
   },
-  "scale": 0.25,
-  "frames": [],
+  "scale": 1.1961788533607758,
+  "frames": [
+    {
+      "id": "b40f8c4b-ba55-4d40-a0b6-a5007b32006f",
+      "title": "wakefit slides_page-0002",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722400/file_wv0utk.jpg",
+      "assetId": "07ddd82274755198815521f5e4878b3b",
+      "publicId": "file_wv0utk",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "94daa874-fde9-4c35-abde-0087c13e1076",
+      "title": "wakefit slides_page-0001",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722401/file_mcykpj.jpg",
+      "assetId": "6b8bfce64294e1978bd46ecef5587e89",
+      "publicId": "file_mcykpj",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "89163e03-a685-4126-8630-605ac684cb15",
+      "title": "wakefit slides_page-0003",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722398/file_gmcugg.jpg",
+      "assetId": "b68bf3a8e73826d7dc586870a7344db1",
+      "publicId": "file_gmcugg",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "8ae21d33-c75c-40c3-b773-48b074d2db1d",
+      "title": "wakefit slides_page-0004",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722396/file_iejdcm.jpg",
+      "assetId": "b7705d4b785180efc56d89e7fbd50d58",
+      "publicId": "file_iejdcm",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "27d110b4-9f61-491e-b6b1-05f71069b0e6",
+      "title": "wakefit slides_page-0005",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722395/file_oewb03.jpg",
+      "assetId": "723263fc030d3bc37bb1abdfc530301d",
+      "publicId": "file_oewb03",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "eaff0e01-07b3-42a2-acd4-7be44524a1a9",
+      "title": "wakefit slides_page-0006",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722393/file_orzq40.jpg",
+      "assetId": "3ce0e3068a3ccbb1c6d0c4db9cdf3913",
+      "publicId": "file_orzq40",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "c6718cee-e9b9-4f50-9fd0-ee66462ffbb7",
+      "title": "wakefit slides_page-0007",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722392/file_ykrtjn.jpg",
+      "assetId": "cf90eb5bd298dab6a58f4a0288d04c96",
+      "publicId": "file_ykrtjn",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "688ba055-ba82-4941-b58e-a9a6f78447b3",
+      "title": "wakefit slides_page-0008",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722390/file_xpp7ud.jpg",
+      "assetId": "b477160ebc22781d84fe4c8593074efa",
+      "publicId": "file_xpp7ud",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "e8bc6b47-e25b-41b1-865a-6182ea3f55cf",
+      "title": "wakefit slides_page-0009",
+      "type": "image",
+      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791722389/file_jldshx.jpg",
+      "assetId": "886a98850df9aa305445ea2c083b9e78",
+      "publicId": "file_jldshx",
+      "resourceType": "image",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
   "thumbnail": {
-    "type": "image",
-    "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791658462/file_a1o7zp.png",
-    "width": 1365,
-    "height": 768,
-    "assetId": "9016ae583e08707e6215ebaef8903733",
-    "publicId": "file_a1o7zp",
-    "resourceType": "image"
+    "type": "video",
+    "src": "https://res.cloudinary.com/deqidbavz/video/upload/v1791722742/file_bbqcz8.mp4",
+    "width": 2560,
+    "height": 1440,
+    "assetId": "713c4748de53565ea0b034b235f4d667",
+    "publicId": "file_bbqcz8",
+    "resourceType": "video"
   }
 }

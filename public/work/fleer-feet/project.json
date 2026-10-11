@@ -6,8 +6,8 @@
     "brand"
   ],
   "position": {
-    "x": 1558.688542770579,
-    "y": 200.10180865919625
+    "x": 1266.659857628097,
+    "y": 587.0310719094035
   },
   "scale": 1,
   "frames": [
@@ -22,16 +22,15 @@
       },
       "width": 600,
       "height": 337.22627737226276
-    },
-    {
-      "id": "23616863-1b0c-4b54-be8e-1a2a61ef1c4b",
-      "title": "Frame 36",
-      "type": "image",
-      "src": "https://res.cloudinary.com/deqidbavz/image/upload/v1791653486/file_nzlili.png",
-      "position": {
-        "x": 0,
-        "y": 0
-      }
     }
-  ]
+  ],
+  "thumbnail": {
+    "type": "video",
+    "src": "https://res.cloudinary.com/deqidbavz/video/upload/v1791722259/file_av3eai.mp4",
+    "width": 1918,
+    "height": 1078,
+    "assetId": "a214d1f4cbe282c37d9866f6b048760e",
+    "publicId": "file_av3eai",
+    "resourceType": "video"
+  }
 }

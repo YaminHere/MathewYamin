@@ -5045,7 +5045,8 @@ height: renderedProjectHeight,
         zIndex:
           projectZIndexes[project.id] ?? 0,
           contentVisibility:
-  hoveredProjectId === project.id
+  hoveredProjectId === project.id ||
+  unlockedProjects[project.id]
     ? "visible"
     : "auto",
 containIntrinsicSize: `${renderedProjectWidth}px ${renderedProjectHeight}px`,
@@ -6051,9 +6052,12 @@ setUploadProgress({
 if (selection.startsWith("thumbnail:")) {
   const file = files[0];
 
-  if (!file.type.startsWith("image/")) {
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+
+  if (!isImage && !isVideo) {
     throw new Error(
-      "Please select an image for the thumbnail."
+      "Please select an image or video for the thumbnail."
     );
   }
 
@@ -6062,13 +6066,10 @@ if (selection.startsWith("thumbnail:")) {
   formData.append("projectId", projectId);
   formData.append("file", file);
 
-  const response = await fetch(
-    "/api/work/upload",
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
+  const response = await fetch("/api/work/upload", {
+    method: "POST",
+    body: formData,
+  });
 
   const result = await response.json();
 
@@ -6078,25 +6079,39 @@ if (selection.startsWith("thumbnail:")) {
     );
   }
 
-  const image = new Image();
-
   const dimensions = await new Promise<{
     width: number;
     height: number;
   }>((resolve) => {
-    image.onload = () =>
-      resolve({
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-      });
+    if (isImage) {
+      const image = new Image();
 
-    image.onerror = () =>
-      resolve({
-        width: 420,
-        height: 300,
-      });
+      image.onload = () =>
+        resolve({
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        });
 
-    image.src = result.publicUrl;
+      image.onerror = () =>
+        resolve({ width: 420, height: 300 });
+
+      image.src = result.publicUrl;
+    } else {
+      const video = document.createElement("video");
+
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () =>
+        resolve({
+          width: video.videoWidth || 420,
+          height: video.videoHeight || 300,
+        });
+
+      video.onerror = () =>
+        resolve({ width: 420, height: 300 });
+
+      video.src = result.publicUrl;
+    }
   });
 
   setProjects((current) =>
@@ -6105,22 +6120,19 @@ if (selection.startsWith("thumbnail:")) {
         ? {
             ...item,
             thumbnail: {
-  type: "image",
-  src: result.publicUrl,
-  ...dimensions,
-  assetId: result.assetId,
-  publicId: result.publicId,
-  resourceType: result.resourceType,
-},
+              type: isVideo ? "video" : "image",
+              src: result.publicUrl,
+              ...dimensions,
+              assetId: result.assetId,
+              publicId: result.publicId,
+              resourceType: result.resourceType,
+            },
           }
         : item
     )
   );
 
-  console.log(
-    "THUMBNAIL UPLOAD SUCCESS:",
-    result.publicUrl
-  );
+  console.log("THUMBNAIL UPLOAD SUCCESS:", result.publicUrl);
 }
 
 
