@@ -5,9 +5,10 @@ import {
   DeleteObjectCommand,
   ListObjectsV2Command,
   DeleteObjectsCommand,
+  PutObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 
-import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function getConfig() {
@@ -69,6 +70,198 @@ export function getR2PublicUrl(key: string) {
 
   return `${publicBaseUrl}/${encodedKey}`;
 }
+
+// -----------------------------------------------------------------------------
+// Project metadata
+// -----------------------------------------------------------------------------
+
+export type R2Project = {
+  id: string;
+  title: string;
+  [key: string]: any;
+};
+
+function getProjectMetadataKey(projectId: string) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+    throw new Error("Invalid project ID");
+  }
+
+  return `projects/${projectId}.json`;
+}
+
+export async function getR2Project(
+  projectId: string
+): Promise<R2Project | null> {
+  const client = getR2Client();
+  const key = getProjectMetadataKey(projectId);
+
+  try {
+    const result = await client.send(
+      new GetObjectCommand({
+        Bucket: getR2Bucket(),
+        Key: key,
+      })
+    );
+
+    if (!result.Body) {
+      return null;
+    }
+
+    const contents = await result.Body.transformToString();
+    const project = JSON.parse(contents);
+
+    if (
+      !project ||
+      typeof project !== "object" ||
+      project.id !== projectId
+    ) {
+      throw new Error("Invalid project metadata");
+    }
+
+    return project as R2Project;
+  } catch (error: any) {
+    if (
+      error?.name === "NoSuchKey" ||
+      error?.$metadata?.httpStatusCode === 404
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+export async function createR2Project(
+  project: R2Project
+) {
+  const client = getR2Client();
+  const key = getProjectMetadataKey(project.id);
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getR2Bucket(),
+      Key: key,
+      Body: JSON.stringify(project, null, 2) + "\n",
+      ContentType: "application/json",
+      IfNoneMatch: "*",
+    })
+  );
+
+  return project;
+}
+
+export async function saveR2Project(
+  project: R2Project
+) {
+  const client = getR2Client();
+  const key = getProjectMetadataKey(project.id);
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getR2Bucket(),
+      Key: key,
+      Body: JSON.stringify(project, null, 2) + "\n",
+      ContentType: "application/json",
+    })
+  );
+
+  return project;
+}
+
+export async function deleteR2ProjectMetadata(
+  projectId: string
+) {
+  const client = getR2Client();
+  const key = getProjectMetadataKey(projectId);
+
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: getR2Bucket(),
+      Key: key,
+    })
+  );
+}
+
+export async function listR2Projects(): Promise<R2Project[]> {
+  const client = getR2Client();
+  const bucket = getR2Bucket();
+
+  const projects: R2Project[] = [];
+
+  let continuationToken: string | undefined;
+
+  do {
+    const result = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: "projects/",
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      })
+    );
+
+    const keys = (result.Contents ?? [])
+      .map((object) => object.Key)
+      .filter(
+        (key): key is string =>
+          typeof key === "string" &&
+          /^projects\/[a-zA-Z0-9_-]+\.json$/.test(key)
+      );
+
+    const batch = await Promise.all(
+      keys.map(async (key) => {
+        try {
+          const result = await client.send(
+            new GetObjectCommand({
+              Bucket: bucket,
+              Key: key,
+            })
+          );
+
+          if (!result.Body) return null;
+
+          const contents = await result.Body.transformToString();
+          const project = JSON.parse(contents);
+
+          const expectedId = key
+            .slice("projects/".length)
+            .replace(/\.json$/, "");
+
+          if (
+            !project ||
+            typeof project !== "object" ||
+            project.id !== expectedId
+          ) {
+            return null;
+          }
+
+          return project as R2Project;
+        } catch (error) {
+          console.error(
+            `Failed to read project metadata: ${key}`,
+            error
+          );
+
+          return null;
+        }
+      })
+    );
+
+    projects.push(
+      ...batch.filter(
+        (project): project is R2Project => project !== null
+      )
+    );
+
+    continuationToken = result.NextContinuationToken;
+  } while (continuationToken);
+
+  return projects;
+}
+
+// -----------------------------------------------------------------------------
+// Connection and media operations
+// -----------------------------------------------------------------------------
 
 export async function testR2Connection() {
   const client = getR2Client();
@@ -141,7 +334,6 @@ export async function deleteR2ProjectObjects(
   const client = getR2Client();
   const bucket = getR2Bucket();
 
-  // Restrict deletion to this project's exact R2 prefix.
   const prefix = `work/${projectId}/`;
 
   let continuationToken: string | undefined;

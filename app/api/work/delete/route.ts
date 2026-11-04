@@ -1,11 +1,11 @@
-
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
 import {
   deleteR2Object,
   deleteR2ProjectObjects,
+  deleteR2ProjectMetadata,
+  getR2Project,
+  saveR2Project,
 } from "@/lib/r2";
 
 const PROJECT_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -18,52 +18,6 @@ function isValidStorageKey(
     typeof storageKey === "string" &&
     storageKey.startsWith(`work/${projectId}/`) &&
     storageKey.length > `work/${projectId}/`.length
-  );
-}
-
-async function findProjectFolder(
-  workPath: string,
-  projectId: string
-) {
-  const entries = await fs.readdir(workPath, {
-    withFileTypes: true,
-  });
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const folderPath = path.join(workPath, entry.name);
-
-    try {
-      const projectJson = await fs.readFile(
-        path.join(folderPath, "project.json"),
-        "utf8"
-      );
-
-      const project = JSON.parse(projectJson);
-
-      if (project.id === projectId) {
-        return {
-          folderPath,
-          project,
-        };
-      }
-    } catch {
-      // Ignore folders without readable project files.
-    }
-  }
-
-  return null;
-}
-
-async function saveProjectMetadata(
-  folderPath: string,
-  project: any
-) {
-  await fs.writeFile(
-    path.join(folderPath, "project.json"),
-    JSON.stringify(project, null, 2) + "\n",
-    "utf8"
   );
 }
 
@@ -97,12 +51,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const workPath = path.join(
-      process.cwd(),
-      "public",
-      "work"
-    );
-
     /*
      * DELETE REPLACED THUMBNAIL MEDIA
      *
@@ -125,19 +73,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const found = await findProjectFolder(
-      workPath,
-      projectId
-    );
+    const project = await getR2Project(projectId);
 
-    if (!found) {
+    if (!project) {
       return NextResponse.json(
         { error: "Project not found" },
         { status: 404 }
       );
     }
-
-    const { folderPath, project } = found;
 
     /*
      * DELETE THUMBNAIL
@@ -162,7 +105,7 @@ export async function POST(request: Request) {
 
       delete project.thumbnail;
 
-      await saveProjectMetadata(folderPath, project);
+      await saveR2Project(project);
 
       if (
         isValidStorageKey(thumbnailStorageKey, projectId)
@@ -260,7 +203,7 @@ export async function POST(request: Request) {
         (item: any) => item.id !== frameId
       );
 
-      await saveProjectMetadata(folderPath, project);
+      await saveR2Project(project);
 
       return NextResponse.json({
         success: true,
@@ -272,16 +215,13 @@ export async function POST(request: Request) {
     /*
      * DELETE PROJECT
      *
-     * Remove all R2 objects under this project's prefix,
-     * then remove its local project folder.
+     * Remove all R2 media objects first,
+     * then remove the project's metadata.
      */
     if (type === "project") {
       const r2Result = await deleteR2ProjectObjects(projectId);
 
-      await fs.rm(folderPath, {
-        recursive: true,
-        force: true,
-      });
+      await deleteR2ProjectMetadata(projectId);
 
       return NextResponse.json({
         success: true,

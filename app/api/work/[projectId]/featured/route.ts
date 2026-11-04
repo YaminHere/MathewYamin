@@ -1,123 +1,93 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import fs from 'fs/promises'
-import path from 'path'
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import {
+    getR2Project,
+    saveR2Project,
+} from "@/lib/r2";
 
 type RouteContext = {
     params: Promise<{
-        projectId: string
-    }>
-}
+        projectId: string;
+    }>;
+};
 
 export async function PATCH(
     request: Request,
     { params }: RouteContext
 ) {
-    const session = await auth()
+    const session = await auth();
 
     if (session?.user?.id !== "admin") {
         return NextResponse.json(
-            { error: 'Unauthorized' },
+            { error: "Unauthorized" },
             { status: 401 }
-        )
+        );
     }
 
-    const { projectId } = await params
+    const { projectId } = await params;
 
-    if (!projectId) {
+    if (
+        !projectId ||
+        !/^[a-zA-Z0-9_-]+$/.test(projectId)
+    ) {
         return NextResponse.json(
-            { error: 'Missing project ID' },
+            { error: "Invalid project ID" },
             { status: 400 }
-        )
+        );
     }
 
     let body: {
-        featured?: unknown
-    }
+        featured?: unknown;
+    };
 
     try {
-        body = await request.json()
+        body = await request.json();
     } catch {
         return NextResponse.json(
-            { error: 'Invalid request body' },
+            { error: "Invalid request body" },
             { status: 400 }
-        )
+        );
     }
 
-    if (typeof body.featured !== 'boolean') {
+    if (typeof body.featured !== "boolean") {
         return NextResponse.json(
             {
-                error:
-                    'Featured value must be a boolean',
+                error: "Featured value must be a boolean",
             },
             { status: 400 }
-        )
-    }
-
-    const workPath = path.join(
-        process.cwd(),
-        'public',
-        'work'
-    )
-
-    const projectPath = path.join(
-        workPath,
-        projectId,
-        'project.json'
-    )
-
-    // Prevent path traversal.
-    const resolvedWorkPath = path.resolve(workPath)
-    const resolvedProjectPath =
-        path.resolve(projectPath)
-
-    if (
-        !resolvedProjectPath.startsWith(
-            `${resolvedWorkPath}${path.sep}`
-        )
-    ) {
-        return NextResponse.json(
-            { error: 'Invalid project ID' },
-            { status: 400 }
-        )
+        );
     }
 
     try {
-        const fileContent = await fs.readFile(
-            resolvedProjectPath,
-            'utf-8'
-        )
+        const project = await getR2Project(projectId);
 
-        const project = JSON.parse(fileContent)
+        if (!project) {
+            return NextResponse.json(
+                { error: "Project not found" },
+                { status: 404 }
+            );
+        }
 
-        project.homepage ??= {}
+        project.homepage ??= {};
+        project.homepage.featured = body.featured;
 
-        project.homepage.featured =
-            body.featured
-
-        await fs.writeFile(
-            resolvedProjectPath,
-            JSON.stringify(project, null, 2) + '\n',
-            'utf-8'
-        )
+        await saveR2Project(project);
 
         return NextResponse.json({
             success: true,
-            featured:
-                project.homepage.featured,
-        })
+            featured: project.homepage.featured,
+        });
     } catch (error) {
         console.error(
-            'Failed to update project selection:',
+            "Failed to update project selection:",
             error
-        )
+        );
 
         return NextResponse.json(
             {
-                error:
-                    'Failed to update project selection',
+                error: "Failed to update project selection",
             },
             { status: 500 }
-        )
+        );
     }
 }

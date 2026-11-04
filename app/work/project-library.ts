@@ -1,97 +1,40 @@
-import fs from 'fs/promises'
-import path from 'path'
+import { listR2Projects } from "@/lib/r2";
 
 export type CanvasFrame = {
-    id: string
-    title: string
-    type: 'image' | 'video' | 'gif' | 'pdf'
-    src: string
+    id: string;
+    title: string;
+    type: "image" | "video" | "gif" | "pdf";
+    src: string;
     position: {
-        x: number
-        y: number
-    }
-    width?: number
-    height?: number
-    zIndex?: number
-}
+        x: number;
+        y: number;
+    };
+    width?: number;
+    height?: number;
+    zIndex?: number;
+};
 
 export type CanvasProject = {
-    id: string
-    title: string
-    year: number
-    classifications: string[]
-    description?: string
+    id: string;
+    title: string;
+    year: number;
+    classifications: string[];
+    description?: string;
     position: {
-        x: number
-        y: number
-    }
-    scale?: number
+        x: number;
+        y: number;
+    };
+    scale?: number;
     homepage?: {
-        featured?: boolean
-        description?: string
-        frameId?: string
-    }
-    frames: CanvasFrame[]
-}
+        featured?: boolean;
+        description?: string;
+        frameId?: string;
+    };
+    frames: CanvasFrame[];
+};
 
 export async function getCanvasProjects(): Promise<CanvasProject[]> {
-    const workPath = path.join(
-        process.cwd(),
-        'public',
-        'work'
-    )
+    const projects = await listR2Projects();
 
-    let entries
-
-try {
-    entries = await fs.readdir(workPath, {
-        withFileTypes: true,
-    })
-} catch (error) {
-    if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        error.code === 'ENOENT'
-    ) {
-        return []
-    }
-
-    throw error
-}
-
-    const projectIds = entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-
-    const projects = await Promise.all(
-        projectIds.map(async (projectId) => {
-            const projectPath = path.join(
-                workPath,
-                projectId,
-                'project.json'
-            )
-
-            try {
-                const fileContent = await fs.readFile(
-                    projectPath,
-                    'utf-8'
-                )
-
-                return JSON.parse(fileContent) as CanvasProject
-            } catch (error) {
-                console.warn(
-                    `Failed to read canvas project: ${projectId}`,
-                    error
-                )
-
-                return null
-            }
-        })
-    )
-
-    return projects.filter(
-        (project): project is CanvasProject =>
-            project !== null
-    )
+    return projects as CanvasProject[];
 }

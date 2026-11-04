@@ -1,7 +1,5 @@
-
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { getR2Project } from "@/lib/r2";
 
 export async function GET(
   _request: Request,
@@ -17,45 +15,16 @@ export async function GET(
       );
     }
 
-    const workPath = path.join(
-      process.cwd(),
-      "public",
-      "work"
-    );
+    const project = await getR2Project(id);
 
-    const entries = await fs.readdir(workPath, {
-      withFileTypes: true,
-    });
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const projectPath = path.join(
-        workPath,
-        entry.name,
-        "project.json"
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
       );
-
-      try {
-        const contents = await fs.readFile(
-          projectPath,
-          "utf8"
-        );
-
-        const project = JSON.parse(contents);
-
-        if (project.id === id) {
-          return NextResponse.json(project);
-        }
-      } catch {
-        // Skip folders without readable project.json files.
-      }
     }
 
-    return NextResponse.json(
-      { error: "Project not found" },
-      { status: 404 }
-    );
+    return NextResponse.json(project);
   } catch (error) {
     console.error("Failed to load project:", error);
 
