@@ -15,7 +15,7 @@
     export async function POST(request: Request) {
     const session = await auth();
 
-    if (!session?.user) {
+    if (session?.user?.id !== "admin") {
         return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -35,7 +35,7 @@
 
         if (
         typeof projectId !== "string" ||
-        !projectId.trim()
+        !/^[a-zA-Z0-9_-]+$/.test(projectId)
         ) {
         return NextResponse.json(
             { error: "Missing projectId" },

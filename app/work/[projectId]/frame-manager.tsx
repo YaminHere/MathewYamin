@@ -9,14 +9,10 @@ type ProjectFrame = {
   title: string;
   type: "image" | "video" | "gif" | "pdf";
   src: string;
+  storageKey?: string;
   position: { x: number; y: number };
   width?: number;
   height?: number;
-
-  // Cloudinary asset reference
-  publicId?: string;
-  resourceType?: string;
-  assetId?: string;
 };
 
 type FrameManagerProps = {
@@ -56,32 +52,75 @@ export function FrameManager({
       const addedFrames: ProjectFrame[] = [];
 
       for (const file of files) {
-        const isImage = file.type.startsWith("image/");
-        const isVideo = file.type.startsWith("video/");
-        const isPdf = file.type === "application/pdf";
+        const isGif = file.type === "image/gif";
+const isImage = file.type.startsWith("image/") && !isGif;
+const isVideo = file.type.startsWith("video/");
+const isPdf = file.type === "application/pdf";
 
-        if (!isImage && !isVideo && !isPdf) {
-          throw new Error(`Unsupported file: ${file.name}`);
-        }
+const maxSize = isGif
+  ? 20 * 1024 * 1024
+  : isImage
+  ? 15 * 1024 * 1024
+  : isVideo
+  ? 100 * 1024 * 1024
+  : isPdf
+  ? 20 * 1024 * 1024
+  : 0;
 
-        const formData = new FormData();
-        formData.append("projectId", projectId);
-        formData.append("file", file);
+if (!maxSize) {
+  throw new Error(`Unsupported file: ${file.name}`);
+}
 
-        const uploadResponse = await fetch("/api/work/upload", {
+if (file.size === 0) {
+  throw new Error(`The selected file is empty: ${file.name}`);
+}
+
+if (file.size > maxSize) {
+  throw new Error(
+    `${file.name} exceeds the ${maxSize / (1024 * 1024)} MB limit.`
+  );
+}
+
+                // Request a temporary R2 upload URL.
+        const uploadResponse = await fetch("/api/work/upload-url", {
           method: "POST",
-          body: formData,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId,
+            fileName: file.name,
+            contentType: file.type,
+          }),
         });
 
         const uploadResult = await uploadResponse.json();
 
         if (
           !uploadResponse.ok ||
-          typeof uploadResult.publicUrl !== "string"
+          typeof uploadResult.uploadUrl !== "string" ||
+          typeof uploadResult.publicUrl !== "string" ||
+          typeof uploadResult.storageKey !== "string"
         ) {
           throw new Error(
-            uploadResult.error || `Upload failed: ${file.name}`
+            uploadResult.error || `Could not prepare upload: ${file.name}`
           );
+        }
+
+        // Upload directly to R2.
+        const directUploadResponse = await fetch(
+          uploadResult.uploadUrl,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": file.type,
+            },
+            body: file,
+          }
+        );
+
+        if (!directUploadResponse.ok) {
+          throw new Error(`R2 upload failed: ${file.name}`);
         }
 
         const type: ProjectFrame["type"] = isPdf
@@ -92,17 +131,14 @@ export function FrameManager({
               ? "gif"
               : "image";
 
-        addedFrames.push({
-  id: crypto.randomUUID(),
-  title: file.name.replace(/\.[^/.]+$/, ""),
-  type,
-  src: uploadResult.publicUrl,
-  position: { x: 0, y: 0 },
-
-  assetId: uploadResult.assetId,
-  publicId: uploadResult.publicId,
-  resourceType: uploadResult.resourceType,
-});
+                addedFrames.push({
+          id: crypto.randomUUID(),
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          type,
+          src: uploadResult.publicUrl,
+          storageKey: uploadResult.storageKey,
+          position: { x: 0, y: 0 },
+        });
       }
 
       const updatedFrames = [...frames, ...addedFrames];
@@ -150,7 +186,7 @@ async function deleteFrame(frameId: string) {
   if (!frame) return;
 
   const confirmed = window.confirm(
-    "Delete this frame and its Cloudinary asset? This cannot be undone."
+    "Delete this frame and its stored media? This cannot be undone."
   );
 
   if (!confirmed) return;
@@ -159,57 +195,31 @@ async function deleteFrame(frameId: string) {
   setStatus("");
 
   try {
-    // Delete the Cloudinary asset first, if its identifier is available.
-    if (frame.assetId) {
-      const deleteResponse = await fetch("/api/work/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          projectId,
-          type: "frame",
-          frameId,
-          assetId: frame.assetId,
-        }),
-      });
+    const deleteResponse = await fetch("/api/work/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId,
+        type: "frame",
+        frameId,
+        storageKey: frame.storageKey,
+      }),
+    });
 
-      const deleteResult = await deleteResponse.json();
+    const deleteResult = await deleteResponse.json();
 
-      if (!deleteResponse.ok || !deleteResult.success) {
-        throw new Error(
-          deleteResult.error || "Failed to delete Cloudinary asset"
-        );
-      }
-    } else {
-      // Legacy frames may not have a Cloudinary asset ID.
-      // Remove their project reference through the existing save endpoint.
-      const updatedFrames = frames.filter(
-        (item) => item.id !== frameId
+    if (!deleteResponse.ok || !deleteResult.success) {
+      throw new Error(
+        deleteResult.error || "Failed to delete frame"
       );
-
-      const response = await fetch("/api/work/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          projectId,
-          projectPosition,
-          frames: updatedFrames,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to remove frame");
-      }
     }
 
     setFrames((current) =>
       current.filter((item) => item.id !== frameId)
     );
+
     setStatus("Frame deleted.");
     router.refresh();
   } catch (error) {
@@ -222,7 +232,6 @@ async function deleteFrame(frameId: string) {
     setDeletingFrameId(null);
   }
 }
-
 
 
 async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
@@ -282,10 +291,10 @@ async function moveFrame(index: number, direction: -1 | 1) {
           </p>
         </div>
 
-        
+
 <div className="mt-6 space-y-6">
   {frames.map((frame, index) => (
-    
+
 <div
   key={frame.id}
   draggable={!uploading && deletingFrameId === null}
@@ -329,7 +338,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
           </p>
         </div>
 
-        
+
 <div className="flex shrink-0 items-center gap-3">
   <button
     type="button"

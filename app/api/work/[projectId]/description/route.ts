@@ -15,7 +15,7 @@ export async function PATCH(
 ) {
     const session = await auth()
 
-    if (!session?.user) {
+    if (session?.user?.id !== "admin") {
         return NextResponse.json(
             { error: 'Unauthorized' },
             { status: 401 }

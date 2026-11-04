@@ -10,7 +10,6 @@ import {
 
 import { useSearchParams } from "next/navigation";
 import { projectManifest } from "@/data/project-manifest";
-import { resolveProjectMedia } from "@/lib/resolve-project-media";
 import Link from "next/link";
 
 type ProjectFrame = {
@@ -18,6 +17,10 @@ type ProjectFrame = {
   title: string;
   type: "image" | "video" | "gif" | "pdf";
   src: string;
+  storageKey?: string;
+  assetId?: string;
+  publicId?: string;
+  resourceType?: string;
   position: {
     x: number;
     y: number;
@@ -35,6 +38,7 @@ type FrameSize = {
 type ProjectThumbnail = {
   type: "image" | "video" | "gif";
   src: string;
+  storageKey?: string;
   width?: number;
   height?: number;
   assetId?: string;
@@ -711,10 +715,10 @@ const projectScalesRef =
   useRef<Record<string, number>>({});
 const framePositionsRef =
   useRef<Record<string, { x: number; y: number }>>({});
-  
+
   const frameFileInputRef =
   useRef<HTMLInputElement | null>(null);
-  
+
 
   const projectZIndexesRef =
   useRef<Record<string, number>>({});
@@ -853,7 +857,7 @@ projectZIndexesRef.current = projectZIndexes;
   const toggleProjectLock = (
     projectId: string
   ) => {
-    
+
 if (!isAdmin) {
   return;
 }
@@ -1060,11 +1064,17 @@ const deleteProject = async (
       projectId
     );
   } catch (error) {
-    console.error(
-      "PROJECT DELETE ERROR:",
-      error
-    );
-  }
+  console.error(
+    "PROJECT DELETE ERROR:",
+    error
+  );
+
+  alert(
+    error instanceof Error
+      ? error.message
+      : "Failed to delete project."
+  );
+}
 };
 
 
@@ -1073,14 +1083,16 @@ const deleteProject = async (
   savedPosition?: {
     x: number;
     y: number;
-  }
-) => {
+  },
+  projectOverride?: Project
+): Promise<boolean> => {
   const project =
-  projectsRef.current.find(
-    (project) => project.id === projectId
-  );
+    projectOverride ??
+    projectsRef.current.find(
+      (project) => project.id === projectId
+    );
 
-if (!project) return;
+  if (!project) return false;
 
   const position =
   savedPosition ??
@@ -1104,6 +1116,7 @@ if (!project) return;
   title: frame.title,
   type: frame.type,
   src: frame.src,
+  storageKey: frame.storageKey,
   position: framePosition,
   ...(frameSize
     ? {
@@ -1160,16 +1173,12 @@ if (!response.ok) {
   );
 }
 
-console.log(
-  "SAVE SUCCESS:",
-  result
-);
+  console.log("SAVE SUCCESS:", result);
+  return true;
 
-  } catch (error) {
-  console.error(
-    "SAVE ERROR:",
-    error
-  );
+} catch (error) {
+  console.error("SAVE ERROR:", error);
+  return false;
 }
 };
 
@@ -1228,42 +1237,49 @@ const saveAllProjects = async () => {
       )
     );
 
-    for (
-      const {
-        project,
-        position,
-      } of projectsToSave
-    ) {
-      await saveProject(
-        project.id,
-        position
-      );
-    }
+    const successfullySaved: typeof projectsToSave = [];
+const failedProjectIds: string[] = [];
 
-    projectsToSave.forEach(
-      ({ project, position }) => {
-        savedProjectsRef.current[
-          project.id
-        ] = {
-          ...structuredClone(project),
-          position: {
-            ...position,
-          },
-          scale:
-            projectScalesRef.current[
-              project.id
-            ] ?? 1,
-        };
-      }
-    );
+for (const { project, position } of projectsToSave) {
+  const saved = await saveProject(project.id, position);
+
+  if (saved) {
+    successfullySaved.push({
+      project,
+      position,
+      positionChanged: true,
+      scaleChanged: true,
+      framesChanged: true,
+    });
+  } else {
+    failedProjectIds.push(project.id);
+  }
+}
+
+successfullySaved.forEach(({ project, position }) => {
+  savedProjectsRef.current[project.id] = {
+    ...structuredClone(project),
+    position: { ...position },
+    scale: projectScalesRef.current[project.id] ?? 1,
+  };
+});
+
+if (failedProjectIds.length > 0) {
+  throw new Error(
+    `Failed to save ${failedProjectIds.length} project(s): ${failedProjectIds.join(", ")}`
+  );
+}
 
     console.log(
       "========== SAVE COMPLETE =========="
     );
-  } catch (error) {
-    console.error(
-      "SAVE ALL ERROR:",
-      error
+    } catch (error) {
+    console.error("SAVE ALL ERROR:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to save projects."
     );
   } finally {
     saveInProgress.current = false;
@@ -1352,10 +1368,9 @@ useEffect(() => {
   await Promise.all(
     projectIds.map(
       async (projectId: string) => {
-        const projectResponse =
-          await fetch(
-            `/work/${projectId}/project.json`
-          );
+        const projectResponse = await fetch(
+  `/api/work/project/${encodeURIComponent(projectId)}`
+);
 
         if (!projectResponse.ok) {
           throw new Error(
@@ -1471,46 +1486,7 @@ for (const project of loadedProjects) {
     );
 
 
-    // --------------------------------------------------
-// LOAD CLOUDINARY MEDIA IN BACKGROUND
-// --------------------------------------------------
 
-loadedProjects.forEach(async (project) => {
-  try {
-    const mediaResponse =
-      await fetch(
-        `/api/cloudinary/${project.id}`
-      );
-
-    if (!mediaResponse.ok) {
-      throw new Error(
-        `Failed to load Cloudinary media: ${project.id}`
-      );
-    }
-
-    const { media } =
-      await mediaResponse.json();
-
-    const resolvedProject =
-      resolveProjectMedia(
-        project,
-        media
-      );
-
-    setProjects((current) =>
-      current.map((item) =>
-        item.id === resolvedProject.id
-          ? resolvedProject
-          : item
-      )
-    );
-  } catch (error) {
-    console.error(
-      `Failed to load media for ${project.id}`,
-      error
-    );
-  }
-});
 
   };
 
@@ -2043,7 +2019,7 @@ useEffect(() => {
 
   activeTargets.current =
     resolvedLayout;
-    
+
 }, [
   activeClassification,
   projects,
@@ -2581,7 +2557,7 @@ const handlePointerDown = (
       worldY,
     };
 
-  
+
 
     return;
   }
@@ -3110,9 +3086,9 @@ const deleteFrame = async (
     return;
   }
 
-  
+
   try {
-    
+
     const response =
       await fetch(
         "/api/work/delete",
@@ -3126,8 +3102,6 @@ const deleteFrame = async (
   projectId,
   type: "frame",
   frameId: frame.id,
-  src: frame.src,
-  assetId: frame.id,
 }),
         }
       );
@@ -3323,7 +3297,10 @@ const handleFramePointerUp = (
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
-  if (!projectId) return;
+  if (!projectId) {
+  alert("Please enter a project title containing letters or numbers.");
+  return;
+}
 
   // ---------------------------------------------
   // CALCULATE POSITION BEFORE CREATING PROJECT
@@ -3962,7 +3939,7 @@ const fitProjectsToMobileViewport = () => {
       position.y + height
     );
   });
-  
+
 
   if (
     !Number.isFinite(minX) ||
@@ -4022,7 +3999,7 @@ const fitProjectsToMobileViewport = () => {
   camera.current = {
     ...targetCamera.current,
   };
-  
+
 
   applyTransform();
 };
@@ -4100,8 +4077,8 @@ const anchorX =
 
 const anchorY =
   currentAnchorY;
-  
-    
+
+
 
     // ------------------------------------------------
     // FIND FOCAL PROJECT
@@ -4653,7 +4630,7 @@ const anchorY =
       );
     };
 
-    
+
 
   const handleProjectPointerMove =
   (
@@ -5027,7 +5004,7 @@ const renderedProjectWidth =
 const renderedProjectHeight =
   contentHeight * projectScale +
   PROJECT_PADDING * 2;
-    
+
 
   return (
     <div
@@ -5215,7 +5192,7 @@ opacity:
               aria-label={`Resize ${project.title}`}
             />
           )}
-            
+
     </div>
     </div>
     );
@@ -5534,7 +5511,7 @@ opacity:
 </div>
 {editingProject === project.id &&
   hoveredEditProject === project.id && (
-  
+
   <div
   className="absolute left-full top-0 z-[999] ml-3 w-[220px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-zinc-900"
   onMouseEnter={() => {
@@ -5580,7 +5557,7 @@ opacity:
         Title
       </label>
 
-      
+
 
       <input
         autoFocus
@@ -5722,47 +5699,77 @@ opacity:
       e.stopPropagation();
 
       const confirmed = window.confirm(
-        "Remove this thumbnail and delete its Cloudinary asset?"
+        "Remove this thumbnail and delete its stored media?"
       );
 
       if (!confirmed) return;
 
       try {
-        const response = await fetch("/api/work/delete", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+  const previousThumbnail = project.thumbnail;
+
+  const updatedProject: Project = {
+    ...project,
+    thumbnail: undefined,
+  };
+
+  const updatedProjects = projectsRef.current.map((item) =>
+    item.id === project.id ? updatedProject : item
+  );
+
+  projectsRef.current = updatedProjects;
+  setProjects(updatedProjects);
+
+  const saved = await saveProject(
+    project.id,
+    undefined,
+    updatedProject
+  );
+
+  if (!saved) {
+    // Restore the previous thumbnail in the UI if saving failed.
+    const restoredProjects = projectsRef.current.map((item) =>
+      item.id === project.id ? project : item
+    );
+
+    projectsRef.current = restoredProjects;
+    setProjects(restoredProjects);
+
+    throw new Error("Failed to save thumbnail removal.");
+  }
+
+  if (previousThumbnail?.storageKey) {
+    const response = await fetch("/api/work/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
   projectId: project.id,
-  type: "thumbnail",
-  assetId: project.thumbnail?.assetId,
+  type: "thumbnail-asset",
+  storageKey: previousThumbnail.storageKey,
 }),
-        });
+    });
 
-        const result = await response.json();
+    const result = await response.json();
 
-        if (!response.ok || !result.success) {
-          throw new Error(
-            result.error || "Failed to remove thumbnail"
-          );
-        }
+    if (!response.ok || !result.success) {
+      console.error(
+        "Thumbnail removed from project, but media cleanup failed:",
+        result.error
+      );
 
-        setProjects((current) =>
-          current.map((item) =>
-            item.id === project.id
-              ? { ...item, thumbnail: undefined }
-              : item
-          )
-        );
-        
-      } catch (error) {
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Failed to remove thumbnail"
-        );
-      }
+      alert(
+        "Thumbnail removal was saved, but the old media could not be deleted."
+      );
+    }
+  }
+} catch (error) {
+  alert(
+    error instanceof Error
+      ? error.message
+      : "Failed to remove thumbnail"
+  );
+}
     }}
     className="mt-2 w-full rounded-md border border-red-500/20 px-3 py-2 text-left text-xs text-red-600 transition-opacity hover:opacity-60"
   >
@@ -5771,7 +5778,7 @@ opacity:
 )}
 
 
-    
+
     {/* DONE */}
     <button
       type="button"
@@ -5785,18 +5792,18 @@ setHoveredEditProject(null);
       Done
     </button>
 
-    
+
   </div>
 )}
   </div>
 ))}
-  
+
   {projects.map((project) =>
     project.frames.map((frame) => {
       const frameKey = `${project.id}:${frame.id}`;
 
       return (
-        
+
         <div
   key={frameKey}
   ref={(element) => {
@@ -5865,7 +5872,7 @@ editingFrameTitle === frameKey
 
       );
     })
-  
+
 
        )}
 </div>
@@ -5991,7 +5998,7 @@ editingFrameTitle === frameKey
 
 
       {/* HIDDEN FRAME MEDIA INPUT */}
-      
+
 
       <input
   ref={frameFileInputRef}
@@ -6061,22 +6068,43 @@ if (selection.startsWith("thumbnail:")) {
     );
   }
 
-  const formData = new FormData();
-
-  formData.append("projectId", projectId);
-  formData.append("file", file);
-
-  const response = await fetch("/api/work/upload", {
+    // Request a temporary R2 upload URL.
+  const response = await fetch("/api/work/upload-url", {
     method: "POST",
-    body: formData,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      projectId,
+      fileName: file.name,
+      contentType: file.type,
+    }),
   });
 
   const result = await response.json();
 
-  if (!response.ok || typeof result.publicUrl !== "string") {
+  if (
+    !response.ok ||
+    typeof result.uploadUrl !== "string" ||
+    typeof result.publicUrl !== "string" ||
+    typeof result.storageKey !== "string"
+  ) {
     throw new Error(
-      result.error || "Thumbnail upload failed"
+      result.error || "Could not prepare thumbnail upload"
     );
+  }
+
+  // Upload the file directly to R2.
+  const uploadResponse = await fetch(result.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+    },
+    body: file,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error("Thumbnail upload to R2 failed");
   }
 
   const dimensions = await new Promise<{
@@ -6114,25 +6142,72 @@ if (selection.startsWith("thumbnail:")) {
     }
   });
 
-  setProjects((current) =>
-    current.map((item) =>
-      item.id === projectId
-        ? {
-            ...item,
-            thumbnail: {
-              type: isVideo ? "video" : "image",
-              src: result.publicUrl,
-              ...dimensions,
-              assetId: result.assetId,
-              publicId: result.publicId,
-              resourceType: result.resourceType,
-            },
-          }
-        : item
-    )
-  );
+  const previousThumbnail = project.thumbnail;
 
-  console.log("THUMBNAIL UPLOAD SUCCESS:", result.publicUrl);
+const updatedProject: Project = {
+  ...project,
+    thumbnail: {
+    type: file.type === "image/gif"
+  ? "gif"
+  : isVideo
+  ? "video"
+  : "image",
+    src: result.publicUrl,
+    storageKey: result.storageKey,
+    ...dimensions,
+  },
+};
+
+const updatedProjects = projectsRef.current.map((item) =>
+  item.id === projectId ? updatedProject : item
+);
+
+// Update the ref immediately so subsequent saves see the latest data.
+projectsRef.current = updatedProjects;
+setProjects(updatedProjects);
+
+// Persist the new thumbnail before deleting the old asset.
+const saved = await saveProject(
+  projectId,
+  undefined,
+  updatedProject
+);
+
+if (!saved) {
+  throw new Error(
+    "Thumbnail uploaded, but saving failed. The previous thumbnail was retained."
+  );
+}
+
+// Only delete the previous asset after the new thumbnail is saved.
+const hasPreviousStorageKey =
+  typeof previousThumbnail?.storageKey === "string" &&
+  previousThumbnail.storageKey !== result.storageKey;
+
+if (hasPreviousStorageKey) {
+  const deleteResponse = await fetch("/api/work/delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      projectId,
+      type: "thumbnail-asset",
+      storageKey: previousThumbnail.storageKey,
+    }),
+  });
+
+  const deleteResult = await deleteResponse.json();
+
+  if (!deleteResponse.ok || !deleteResult.success) {
+    console.error(
+      "Previous thumbnail cleanup failed:",
+      deleteResult.error
+    );
+  }
+}
+
+console.log("THUMBNAIL UPLOAD AND SAVE SUCCESS:", result.publicUrl);
 }
 
 
@@ -6188,40 +6263,52 @@ if (selection.startsWith("thumbnail:")) {
   total: 1,
 });
 
-      const formData =
-        new FormData();
-
-      formData.append(
-        "projectId",
-        existingProjectId
+            // Request a temporary R2 upload URL.
+      const response = await fetch(
+        "/api/work/upload-url",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId: existingProjectId,
+            fileName: file.name,
+            contentType: file.type,
+          }),
+        }
       );
 
-      formData.append(
-        "file",
-        file
-      );
+      const result = await response.json();
 
-      const response =
-        await fetch(
-          "/api/work/upload",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
+      if (
+        !response.ok ||
+        typeof result.uploadUrl !== "string" ||
+        typeof result.publicUrl !== "string" ||
+        typeof result.storageKey !== "string"
+      ) {
         throw new Error(
-          result.error ||
-            "Upload failed"
+          result.error || "Could not prepare frame upload"
         );
       }
 
-      const publicUrl =
-        result.publicUrl;
+      // Upload directly to R2.
+      const uploadResponse = await fetch(
+        result.uploadUrl,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type,
+          },
+          body: file,
+        }
+      );
+
+      if (!uploadResponse.ok) {
+        throw new Error("Frame upload to R2 failed");
+      }
+
+      const publicUrl = result.publicUrl;
 
       setProjects((current) =>
         current.map(
@@ -6239,8 +6326,8 @@ if (selection.startsWith("thumbnail:")) {
                               ...frame,
                               type,
                               src: publicUrl,
-                              title:
-                                file.name,
+                              storageKey: result.storageKey,
+                              title: file.name,
                             }
                           : frame
                     ),
