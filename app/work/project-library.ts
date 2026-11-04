@@ -24,7 +24,7 @@ export type CanvasProject = {
     position: {
         x: number
         y: number
-    }   
+    }
     scale?: number
     homepage?: {
         featured?: boolean
@@ -41,9 +41,24 @@ export async function getCanvasProjects(): Promise<CanvasProject[]> {
         'work'
     )
 
-    const entries = await fs.readdir(workPath, {
+    let entries
+
+try {
+    entries = await fs.readdir(workPath, {
         withFileTypes: true,
     })
+} catch (error) {
+    if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'ENOENT'
+    ) {
+        return []
+    }
+
+    throw error
+}
 
     const projectIds = entries
         .filter((entry) => entry.isDirectory())
