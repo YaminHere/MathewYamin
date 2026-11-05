@@ -3,6 +3,7 @@ import './globals.css'
 import { LayoutShell } from './layout-shell'
 import { ThemeProvider } from 'next-themes'
 import { LoadingScreen } from './loading-screen'
+import { CustomCursor } from '@/components/ui/custom-cursor'
 
 import { Geist, Geist_Mono } from 'next/font/google'
 
@@ -47,6 +48,8 @@ export default function RootLayout({
           storageKey="theme"
           defaultTheme="system"
         >
+          <CustomCursor />
+
           <div className="flex min-h-screen w-full flex-col font-[family-name:var(--font-inter-tight)]">
             <LayoutShell>{children}</LayoutShell>
           </div>

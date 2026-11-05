@@ -43,3 +43,11 @@
     transparent 100%
   );
 }
+
+/* Custom cursor */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html.custom-cursor-enabled,
+  html.custom-cursor-enabled * {
+    cursor: none !important;
+  }
+}
