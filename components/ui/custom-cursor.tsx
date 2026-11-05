@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion, useMotionValue, useSpring } from 'motion/react'
+import { motion, useMotionValue, useSpring, useTransform } from 'motion/react'
 
 export function CustomCursor() {
   const [enabled, setEnabled] = useState(false)
@@ -9,6 +9,9 @@ export function CustomCursor() {
 
   const x = useMotionValue(-100)
   const y = useMotionValue(-100)
+
+const magneticX = useMotionValue(0)
+const magneticY = useMotionValue(0)
 
   const cursorX = useSpring(x, {
     stiffness: 1000,
@@ -21,6 +24,26 @@ export function CustomCursor() {
     damping: 55,
     mass: 0.2,
   })
+
+  const smoothMagneticX = useSpring(magneticX, {
+  stiffness: 180,
+  damping: 24,
+  mass: 0.4,
+})
+
+const smoothMagneticY = useSpring(magneticY, {
+  stiffness: 180,
+  damping: 24,
+  mass: 0.4,
+})
+
+const finalX = useTransform(
+  () => cursorX.get() + smoothMagneticX.get()
+)
+
+const finalY = useTransform(
+  () => cursorY.get() + smoothMagneticY.get()
+)
 
   useEffect(() => {
     const pointerQuery = window.matchMedia(
@@ -56,9 +79,55 @@ export function CustomCursor() {
 
     const handleMove = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse') return
-      x.set(event.clientX)
-      y.set(event.clientY)
-      setVisible(true)
+
+        const pointerX = event.clientX
+        const pointerY = event.clientY
+
+        x.set(pointerX)
+        y.set(pointerY)
+
+        const targets = document.querySelectorAll<HTMLElement>(
+            'a, button, [role="button"], input, textarea, select, [data-magnetic]'
+            )
+
+            let nearestDistance = 90
+            let targetRect: DOMRect | undefined
+
+            for (const element of targets) {
+            const rect = element.getBoundingClientRect()
+
+            if (!rect.width || !rect.height) continue
+
+            const nearestX = Math.max(rect.left, Math.min(pointerX, rect.right))
+            const nearestY = Math.max(rect.top, Math.min(pointerY, rect.bottom))
+
+            const distance = Math.hypot(
+                pointerX - nearestX,
+                pointerY - nearestY
+            )
+
+            if (distance < nearestDistance) {
+                nearestDistance = distance
+                targetRect = rect
+            }
+            }
+
+            if (targetRect) {
+            const dx = targetRect.left + targetRect.width / 2 - pointerX
+            const dy = targetRect.top + targetRect.height / 2 - pointerY
+            const distance = Math.hypot(dx, dy)
+
+            const strength = 1 - nearestDistance / 90
+            const pull = Math.min(12, distance) * strength
+
+            magneticX.set(distance ? (dx / distance) * pull : 0)
+            magneticY.set(distance ? (dy / distance) * pull : 0)
+            } else {
+            magneticX.set(0)
+            magneticY.set(0)
+            }
+
+        setVisible(true)
     }
 
     const handleLeave = () => setVisible(false)
@@ -85,8 +154,8 @@ export function CustomCursor() {
     position: 'fixed',
     left: 0,
     top: 0,
-    x: cursorX,
-    y: cursorY,
+    x: finalX,
+    y: finalY,
     opacity: visible ? 1 : 0,
     pointerEvents: 'none',
     zIndex: 99999,
