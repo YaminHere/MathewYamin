@@ -12,60 +12,79 @@ export function CanvasPreview({
     const projectRefs =
         useRef<Record<string, HTMLDivElement | null>>({})
 
+        const previewRef = useRef<HTMLDivElement | null>(null)
+
     useEffect(() => {
-        if (!projects.length) return
+    if (!projects.length) return
 
-        let animationFrame: number
-        const start = performance.now()
+    const preview = previewRef.current
+    if (!preview) return
 
-        const animate = (now: number) => {
-            const time = (now - start) / 1000
+    let animationFrame: number | null = null
+    let elapsed = 0
+    let lastTime = 0
 
-            projects.forEach((project, index) => {
-                const element =
-                    projectRefs.current[project.id]
-
-                if (!element) return
-
-                const offset = index * 1.73
-
-                const speed =
-                    0.22 + (index % 4) * 0.035
-
-                const x =
-                    Math.sin(
-                        time * speed + offset
-                    ) *
-                    (18 + (index % 3) * 5)
-
-                const y =
-                    Math.cos(
-                        time * speed * 0.72 +
-                            offset
-                    ) *
-                    (14 + (index % 4) * 4)
-
-                const rotation =
-                    Math.sin(
-                        time * speed * 0.55 +
-                            offset
-                    ) * 1
-
-                element.style.transform =
-                    `translate3d(${x}px, ${y}px, 0) rotate(${rotation}deg)`
-            })
-
-            animationFrame =
-                requestAnimationFrame(animate)
+    const animate = (now: number) => {
+        if (!lastTime) {
+            lastTime = now
+        } else {
+            elapsed += now - lastTime
         }
 
-        animationFrame =
-            requestAnimationFrame(animate)
+        const time = elapsed / 1000
 
-        return () => {
+        projects.forEach((project, index) => {
+            const element = projectRefs.current[project.id]
+            if (!element) return
+
+            const offset = index * 1.73
+            const speed = 0.22 + (index % 4) * 0.035
+
+            const x =
+                Math.sin(time * speed + offset) *
+                (18 + (index % 3) * 5)
+
+            const y =
+                Math.cos(time * speed * 0.72 + offset) *
+                (14 + (index % 4) * 4)
+
+            const rotation =
+                Math.sin(time * speed * 0.55 + offset) * 1
+
+            element.style.transform =
+                `translate3d(${x}px, ${y}px, 0) rotate(${rotation}deg)`
+        })
+
+        lastTime = now
+        animationFrame = requestAnimationFrame(animate)
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+            if (animationFrame === null) {
+                lastTime = 0
+                animationFrame = requestAnimationFrame(animate)
+            }
+        } else {
+            if (animationFrame !== null) {
+                cancelAnimationFrame(animationFrame)
+                animationFrame = null
+            }
+
+            lastTime = 0
+        }
+    })
+
+    observer.observe(preview)
+
+    return () => {
+        observer.disconnect()
+
+        if (animationFrame !== null) {
             cancelAnimationFrame(animationFrame)
         }
-    }, [projects])
+    }
+}, [projects])
 
     if (!projects.length) {
         return null
@@ -126,7 +145,9 @@ export function CanvasPreview({
             href="/work"
             className="group block overflow-hidden rounded-2xl border border-zinc-200/70 bg-zinc-50 dark:border-zinc-800/70 dark:bg-zinc-950"
         >
-            <div className="relative h-[420px] overflow-hidden">
+            <div
+            ref={previewRef}
+            className="relative h-[420px] overflow-hidden">
                 <div
                     className="absolute"
                     style={{
@@ -146,10 +167,9 @@ export function CanvasPreview({
                             x: sourceX,
                             y: sourceY,
                         }) => {
-                            const frame =
-                                project.frames?.[0]
+                            const thumbnail = project.thumbnail
 
-                            if (!frame) {
+                            if (!thumbnail?.src) {
                                 return null
                             }
 
@@ -175,28 +195,22 @@ export function CanvasPreview({
                                     style={{
                                         left: baseX,
                                         top: baseY,
-                                        willChange:
-                                            'transform',
                                     }}
                                 >
-                                    {frame.type ===
-                                    'video' ? (
+                                    {thumbnail.type === 'video' ? (
                                         <video
-                                            src={
-                                                frame.src
-                                            }
-                                            autoPlay
-                                            loop
+                                            src={thumbnail.src}
+                                            preload="none"
                                             muted
                                             playsInline
                                             className="aspect-video w-full object-cover"
                                         />
                                     ) : (
                                         <img
-                                            src={
-                                                frame.src
-                                            }
+                                            src={thumbnail.src}
                                             alt=""
+                                            loading="lazy"
+                                            decoding="async"
                                             className="aspect-video w-full object-cover"
                                         />
                                     )}

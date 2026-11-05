@@ -14,6 +14,14 @@ export type CanvasFrame = {
     zIndex?: number;
 };
 
+export type CanvasThumbnail = {
+    type: "image" | "video" | "gif";
+    src: string;
+    storageKey?: string;
+    width?: number;
+    height?: number;
+};
+
 export type CanvasProject = {
     id: string;
     title: string;
@@ -30,6 +38,7 @@ export type CanvasProject = {
         description?: string;
         frameId?: string;
     };
+    thumbnail?: CanvasThumbnail;
     frames: CanvasFrame[];
 };
 
