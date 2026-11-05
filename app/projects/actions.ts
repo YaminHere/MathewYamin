@@ -1,35 +1,21 @@
 'use server'
 
-import fs from 'fs/promises'
-import path from 'path'
+import { getR2Project, saveR2Project } from '@/lib/r2'
 
 export async function toggleHomepageFeatured(
     projectId: string,
     featured: boolean
 ) {
-    const projectPath = path.join(
-        process.cwd(),
-        'public',
-        'work',
-        projectId,
-        'project.json'
-    )
+    const project = await getR2Project(projectId)
 
-    const fileContent = await fs.readFile(
-        projectPath,
-        'utf-8'
-    )
-
-    const project = JSON.parse(fileContent)
+    if (!project) {
+        throw new Error('Project not found')
+    }
 
     project.homepage = {
         ...(project.homepage ?? {}),
         featured,
     }
 
-    await fs.writeFile(
-        projectPath,
-        JSON.stringify(project, null, 2) + '\n',
-        'utf-8'
-    )
+    await saveR2Project(project)
 }

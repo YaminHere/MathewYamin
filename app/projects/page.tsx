@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { getCanvasProjects } from '../work/project-library'
 import { ProjectsList } from './(list)/projects-list'
 
+export const dynamic = "force-dynamic";
+
 export default async function ProjectsPage() {
     const projects = await getCanvasProjects()
 

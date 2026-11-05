@@ -33,10 +33,11 @@ const TRANSITION_SECTION = {
 
 type ProjectVideoProps = {
     src: string
+    type: "image" | "video" | "gif"
 }
 
-function ProjectVideo({ src }: ProjectVideoProps) {
-    const isVideo = src.endsWith('.mp4') || src.endsWith('.webm') || src.endsWith('.ogg')
+function ProjectVideo({ src, type }: ProjectVideoProps) {
+    const isVideo = type === "video"
     const isGoogleDrive = src.includes('drive.google.com') && src.includes('/preview')
 
     return (
@@ -124,18 +125,11 @@ export function ProjectsList({
             animate="visible"
         >
             {projects.map((project) => {
-    const featuredFrame =
-    project.homepage?.frameId
-        ? project.frames?.find(
-              (frame) =>
-                  frame.id ===
-                  project.homepage?.frameId
-          )
-        : project.frames?.[0];
+    const thumbnail = project.thumbnail
 
-if (!featuredFrame) {
-    return null;
-}
+    if (!thumbnail?.src) {
+        return null
+    }
 
     return (
         <motion.div
@@ -146,7 +140,8 @@ if (!featuredFrame) {
         >
             <div className="relative rounded-2xl bg-zinc-50/40 p-1 ring-1 ring-zinc-200/50 ring-inset dark:bg-zinc-950/40 dark:ring-zinc-800/50">
                 <ProjectVideo
-                    src={featuredFrame.src}
+                    src={thumbnail.src}
+                    type={thumbnail.type}
                 />
             </div>
 
