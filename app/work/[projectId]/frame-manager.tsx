@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { optimizeImage } from "@/lib/image-optimizer";
 
 type ProjectFrame = {
   id: string;
@@ -81,6 +82,18 @@ if (file.size > maxSize) {
   );
 }
 
+
+const uploadFile = isImage
+  ? await optimizeImage(file)
+  : file;
+
+console.log("Frame Manager optimization:", {
+  originalSize: file.size,
+  uploadedSize: uploadFile.size,
+  originalType: file.type,
+  uploadedType: uploadFile.type,
+});
+
                 // Request a temporary R2 upload URL.
         const uploadResponse = await fetch("/api/work/upload-url", {
           method: "POST",
@@ -89,8 +102,8 @@ if (file.size > maxSize) {
           },
           body: JSON.stringify({
             projectId,
-            fileName: file.name,
-            contentType: file.type,
+            fileName: uploadFile.name,
+            contentType: uploadFile.type,
           }),
         });
 
@@ -113,9 +126,9 @@ if (file.size > maxSize) {
           {
             method: "PUT",
             headers: {
-              "Content-Type": file.type,
+              "Content-Type": uploadFile.type,
             },
-            body: file,
+            body: uploadFile,
           }
         );
 

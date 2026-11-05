@@ -10,6 +10,7 @@ import {
 
 import { useSearchParams } from "next/navigation";
 import { projectManifest } from "@/data/project-manifest";
+import { optimizeImage } from "@/lib/image-optimizer";
 import Link from "next/link";
 
 type ProjectFrame = {
@@ -6059,6 +6060,17 @@ setUploadProgress({
 if (selection.startsWith("thumbnail:")) {
   const file = files[0];
 
+  const uploadFile = file.type.startsWith("image/")
+  ? await optimizeImage(file)
+  : file;
+
+console.log("Thumbnail optimization:", {
+  originalSize: file.size,
+  uploadedSize: uploadFile.size,
+  originalType: file.type,
+  uploadedType: uploadFile.type,
+});
+
   const isImage = file.type.startsWith("image/");
   const isVideo = file.type.startsWith("video/");
 
@@ -6076,8 +6088,8 @@ if (selection.startsWith("thumbnail:")) {
     },
     body: JSON.stringify({
       projectId,
-      fileName: file.name,
-      contentType: file.type,
+      fileName: uploadFile.name,
+      contentType: uploadFile.type,
     }),
   });
 
@@ -6098,47 +6110,47 @@ if (selection.startsWith("thumbnail:")) {
   const uploadResponse = await fetch(result.uploadUrl, {
     method: "PUT",
     headers: {
-      "Content-Type": file.type,
+      "Content-Type": uploadFile.type,
     },
-    body: file,
+    body: uploadFile,
   });
 
   if (!uploadResponse.ok) {
     throw new Error("Thumbnail upload to R2 failed");
   }
 
+    // Read dimensions locally instead of downloading the uploaded file again.
+  const localPreviewUrl = URL.createObjectURL(uploadFile);
+
   const dimensions = await new Promise<{
     width: number;
     height: number;
   }>((resolve) => {
+    const finish = (width: number, height: number) => {
+      URL.revokeObjectURL(localPreviewUrl);
+      resolve({ width, height });
+    };
+
     if (isImage) {
       const image = new Image();
 
       image.onload = () =>
-        resolve({
-          width: image.naturalWidth,
-          height: image.naturalHeight,
-        });
+        finish(image.naturalWidth, image.naturalHeight);
 
-      image.onerror = () =>
-        resolve({ width: 420, height: 300 });
+      image.onerror = () => finish(420, 300);
 
-      image.src = result.publicUrl;
+      image.src = localPreviewUrl;
     } else {
       const video = document.createElement("video");
 
       video.preload = "metadata";
 
       video.onloadedmetadata = () =>
-        resolve({
-          width: video.videoWidth || 420,
-          height: video.videoHeight || 300,
-        });
+        finish(video.videoWidth || 420, video.videoHeight || 300);
 
-      video.onerror = () =>
-        resolve({ width: 420, height: 300 });
+      video.onerror = () => finish(420, 300);
 
-      video.src = result.publicUrl;
+      video.src = localPreviewUrl;
     }
   });
 
@@ -6258,6 +6270,18 @@ console.log("THUMBNAIL UPLOAD AND SAVE SUCCESS:", result.publicUrl);
         frameId,
       ] = selection.split(":");
 
+      const uploadFile =
+  type === "image"
+    ? await optimizeImage(file)
+    : file;
+
+console.log("Frame optimization:", {
+  originalSize: file.size,
+  uploadedSize: uploadFile.size,
+  originalType: file.type,
+  uploadedType: uploadFile.type,
+});
+
       setUploadProgress({
   current: 1,
   total: 1,
@@ -6273,8 +6297,8 @@ console.log("THUMBNAIL UPLOAD AND SAVE SUCCESS:", result.publicUrl);
           },
           body: JSON.stringify({
             projectId: existingProjectId,
-            fileName: file.name,
-            contentType: file.type,
+            fileName: uploadFile.name,
+            contentType: uploadFile.type,
           }),
         }
       );
@@ -6298,9 +6322,9 @@ console.log("THUMBNAIL UPLOAD AND SAVE SUCCESS:", result.publicUrl);
         {
           method: "PUT",
           headers: {
-            "Content-Type": file.type,
+            "Content-Type": uploadFile.type,
           },
-          body: file,
+          body: uploadFile,
         }
       );
 
