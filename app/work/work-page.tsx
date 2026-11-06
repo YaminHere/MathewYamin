@@ -1100,191 +1100,266 @@ const deleteProject = async (
   const project =
     projectOverride ??
     projectsRef.current.find(
-      (project) => project.id === projectId
+      (item) => item.id === projectId
     );
 
   if (!project) return false;
 
-  const position =
-  savedPosition ??
-  projectPositionsRef.current[
-    projectId
-  ] ??
-  project.position;
+  const saved =
+    savedProjectsRef.current[projectId];
 
-  const frames = project.frames.map((frame) => {
+  const position =
+    savedPosition ??
+    projectPositionsRef.current[projectId] ??
+    project.position;
+
+  const scale =
+    projectScalesRef.current[projectId] ??
+    project.scale ??
+    1;
+
+  const currentFrames = project.frames.map((frame) => {
     const key = `${projectId}:${frame.id}`;
 
     const framePosition =
-      framePositions[key] ??
+      framePositionsRef.current[key] ??
       frame.position;
 
-    const frameSize =
-      frameSizes[key];
+    const frameSize = frameSizes[key];
 
     return {
-  id: frame.id,
-  title: frame.title,
-  type: frame.type,
-  src: frame.src,
-  storageKey: frame.storageKey,
-  position: framePosition,
-  ...(frameSize
-    ? {
-        width: frameSize.width,
-        height: frameSize.height,
-      }
-    : {}),
-};
+      id: frame.id,
+      title: frame.title,
+      type: frame.type,
+      src: frame.src,
+      storageKey: frame.storageKey,
+      position: framePosition,
+      ...(frameSize
+        ? {
+            width: frameSize.width,
+            height: frameSize.height,
+          }
+        : frame.width !== undefined &&
+          frame.height !== undefined
+        ? {
+            width: frame.width,
+            height: frame.height,
+          }
+        : {}),
+      ...(frame.zIndex !== undefined
+        ? { zIndex: frame.zIndex }
+        : {}),
+    };
   });
 
+  const same = (a: unknown, b: unknown) =>
+    JSON.stringify(a) === JSON.stringify(b);
 
-  console.log(
-  "SAVING PROJECT POSITION:",
-  {
-    projectId,
-    position,
+  const positionChanged =
+    !saved || !same(position, saved.position);
+
+  const scaleChanged =
+    !saved || scale !== (saved.scale ?? 1);
+
+  const titleChanged =
+    !saved || project.title !== saved.title;
+
+  const classificationsChanged =
+    !saved ||
+    !same(project.classifications, saved.classifications);
+
+  const yearChanged =
+    !saved || project.year !== saved.year;
+
+  const thumbnailChanged =
+    !saved ||
+    !same(
+      project.thumbnail ?? null,
+      saved.thumbnail ?? null
+    );
+
+  const frameUpdates: Array<Record<string, unknown>> = [];
+
+if (saved) {
+  for (const frame of currentFrames) {
+    const savedFrame = saved.frames.find(
+      (item) => item.id === frame.id
+    );
+
+    if (!savedFrame) continue;
+
+    const update: Record<string, unknown> = {
+      id: frame.id,
+    };
+
+    // Only include position if it changed.
+    if (!same(frame.position, savedFrame.position)) {
+      update.position = frame.position;
+    }
+
+    // Only include dimensions if they changed.
+    const currentHasSize =
+      typeof frame.width === "number" &&
+      typeof frame.height === "number";
+
+    const savedHasSize =
+      typeof savedFrame.width === "number" &&
+      typeof savedFrame.height === "number";
+
+    if (
+      currentHasSize &&
+      (!savedHasSize ||
+        frame.width !== savedFrame.width ||
+        frame.height !== savedFrame.height)
+    ) {
+      update.width = frame.width;
+      update.height = frame.height;
+    }
+
+    // Only include z-index if it changed.
+    if (
+      typeof frame.zIndex === "number" &&
+      frame.zIndex !== savedFrame.zIndex
+    ) {
+      update.zIndex = frame.zIndex;
+    }
+
+    // An update containing only an ID has no changes.
+    if (Object.keys(update).length > 1) {
+      frameUpdates.push(update);
+    }
   }
-);
+}
 
-console.log(
-  "FRAMES BEING SAVED:",
-  frames
-);
+const framesChanged = frameUpdates.length > 0;
+
+  // Nothing changed. Do not make an API request.
+  if (
+    !positionChanged &&
+    !scaleChanged &&
+    !titleChanged &&
+    !classificationsChanged &&
+    !yearChanged &&
+    !thumbnailChanged &&
+    !framesChanged
+  ) {
+    return true;
+  }
+
+  const payload: Record<string, unknown> = {
+    projectId,
+  };
+
+  if (titleChanged) {
+    payload.projectTitle = project.title;
+  }
+
+  if (positionChanged) {
+    payload.projectPosition = position;
+  }
+
+  if (scaleChanged) {
+    payload.projectScale = scale;
+  }
+
+  if (classificationsChanged) {
+    payload.projectClassifications =
+      project.classifications;
+  }
+
+  if (yearChanged) {
+    payload.projectYear = project.year;
+  }
+
+  if (thumbnailChanged) {
+    payload.thumbnail = project.thumbnail ?? null;
+  }
+
+  // Send only changed frame properties.
+if (framesChanged) {
+  payload.frameUpdates = frameUpdates;
+}
+
+  console.log("SAVING CHANGED PROJECT:", {
+    projectId,
+    positionChanged,
+    scaleChanged,
+    titleChanged,
+    classificationsChanged,
+    yearChanged,
+    thumbnailChanged,
+    framesChanged,
+  });
 
   try {
-    const response = await fetch(
-      "/api/work/save",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-  projectId,
-  projectTitle: project.title,
-  projectPosition: position,
-  projectScale:
-    projectScales[projectId] ?? 1,
-  projectClassifications:
-    project.classifications,
-    projectYear: project.year,
-    thumbnail: project.thumbnail ?? null,
-  frames,
-}),
-      }
-    );
+    const response = await fetch("/api/work/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
     const result = await response.json();
 
-if (!response.ok) {
-  throw new Error(
-    result.error ||
-      `Save failed with status ${response.status}`
-  );
-}
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+          `Save failed with status ${response.status}`
+      );
+    }
 
-  console.log("SAVE SUCCESS:", result);
-  return true;
+    // Update the saved snapshot only after successful persistence.
+    savedProjectsRef.current[projectId] = {
+      ...structuredClone(project),
+      position: { ...position },
+      scale,
+      frames: currentFrames.map((frame) => ({
+        ...frame,
+        position: { ...frame.position },
+      })),
+    };
 
-} catch (error) {
-  console.error("SAVE ERROR:", error);
-  return false;
-}
+    console.log("PROJECT SAVE SUCCESS:", projectId);
+
+    return true;
+  } catch (error) {
+    console.error("PROJECT SAVE ERROR:", error);
+    return false;
+  }
 };
+
 
 const saveAllProjects = async () => {
   if (!isAdmin) return;
 
   if (saveInProgress.current) {
-    console.log(
-      "SAVE ALREADY IN PROGRESS"
-    );
+    console.log("SAVE ALREADY IN PROGRESS");
     return;
   }
 
   saveInProgress.current = true;
   setIsSaving(true);
 
-  console.log(
-    "========== SAVE START =========="
-  );
-
   try {
-    const projectsToSave =
-  projectsRef.current.map(
-    (project) => {
-      const position =
-        projectPositionsRef.current[
-          project.id
-        ] ??
-        project.position;
+    const failedProjectIds: string[] = [];
 
-      return {
-        project,
-        position,
-        positionChanged: true,
-        scaleChanged: true,
-        framesChanged: true,
-      };
+    for (const project of projectsRef.current) {
+      const saved = await saveProject(project.id);
+
+      if (!saved) {
+        failedProjectIds.push(project.id);
+      }
     }
-  );
-    console.log(
-      "PROJECTS TO SAVE:",
-      projectsToSave.map(
-        ({
-          project,
-          position,
-          positionChanged,
-          scaleChanged,
-          framesChanged,
-        }) => ({
-          id: project.id,
-          position,
-          positionChanged,
-          scaleChanged,
-          framesChanged,
-        })
-      )
-    );
 
-    const successfullySaved: typeof projectsToSave = [];
-const failedProjectIds: string[] = [];
+    if (failedProjectIds.length > 0) {
+      throw new Error(
+        `Failed to save ${failedProjectIds.length} project(s): ${failedProjectIds.join(", ")}`
+      );
+    }
 
-for (const { project, position } of projectsToSave) {
-  const saved = await saveProject(project.id, position);
-
-  if (saved) {
-    successfullySaved.push({
-      project,
-      position,
-      positionChanged: true,
-      scaleChanged: true,
-      framesChanged: true,
-    });
-  } else {
-    failedProjectIds.push(project.id);
-  }
-}
-
-successfullySaved.forEach(({ project, position }) => {
-  savedProjectsRef.current[project.id] = {
-    ...structuredClone(project),
-    position: { ...position },
-    scale: projectScalesRef.current[project.id] ?? 1,
-  };
-});
-
-if (failedProjectIds.length > 0) {
-  throw new Error(
-    `Failed to save ${failedProjectIds.length} project(s): ${failedProjectIds.join(", ")}`
-  );
-}
-
-    console.log(
-      "========== SAVE COMPLETE =========="
-    );
-    } catch (error) {
+    console.log("========== SAVE COMPLETE ==========");
+  } catch (error) {
     console.error("SAVE ALL ERROR:", error);
 
     alert(

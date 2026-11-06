@@ -103,15 +103,16 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const {
-      projectId,
-      projectTitle,
-      projectPosition,
-      projectScale,
-      projectClassifications,
-      projectYear,
-      thumbnail,
-      frames,
-    } = body;
+  projectId,
+  projectTitle,
+  projectPosition,
+  projectScale,
+  projectClassifications,
+  projectYear,
+  thumbnail,
+  frames,
+  frameUpdates,
+} = body;
 
     if (
       typeof projectId !== "string" ||
@@ -321,6 +322,99 @@ export async function POST(request: Request) {
           };
         })
       );
+    }
+
+        // Apply partial updates to existing frames without rebuilding
+    // or revalidating their unchanged media metadata.
+    else if (Array.isArray(frameUpdates)) {
+      const existingFrames = Array.isArray(project.frames)
+        ? project.frames
+        : [];
+
+      const updatesById = new Map<string, Record<string, unknown>>();
+
+      for (const update of frameUpdates) {
+        if (
+          !update ||
+          typeof update.id !== "string" ||
+          !update.id.trim()
+        ) {
+          throw new Error("Invalid frame update");
+        }
+
+        if (updatesById.has(update.id)) {
+          throw new Error("Duplicate frame update");
+        }
+
+        const existingFrame = existingFrames.find(
+          (frame: any) => frame.id === update.id
+        );
+
+        if (!existingFrame) {
+          throw new Error("Frame not found");
+        }
+
+        const patch: Record<string, unknown> = {};
+
+        if (Object.prototype.hasOwnProperty.call(update, "position")) {
+          const position = update.position;
+
+          if (
+            !position ||
+            typeof position.x !== "number" ||
+            !Number.isFinite(position.x) ||
+            typeof position.y !== "number" ||
+            !Number.isFinite(position.y)
+          ) {
+            throw new Error("Invalid frame position");
+          }
+
+          patch.position = {
+            x: position.x,
+            y: position.y,
+          };
+        }
+
+        if (
+          update.width !== undefined ||
+          update.height !== undefined
+        ) {
+          if (
+            typeof update.width !== "number" ||
+            !Number.isFinite(update.width) ||
+            update.width <= 0 ||
+            typeof update.height !== "number" ||
+            !Number.isFinite(update.height) ||
+            update.height <= 0
+          ) {
+            throw new Error("Invalid frame dimensions");
+          }
+
+          patch.width = update.width;
+          patch.height = update.height;
+        }
+
+        if (update.zIndex !== undefined) {
+          if (
+            typeof update.zIndex !== "number" ||
+            !Number.isFinite(update.zIndex)
+          ) {
+            throw new Error("Invalid frame z-index");
+          }
+
+          patch.zIndex = update.zIndex;
+        }
+
+        updatesById.set(update.id, patch);
+      }
+
+      project.frames = existingFrames.map((frame: any) => {
+        const patch = updatesById.get(frame.id);
+
+        return patch
+          ? { ...frame, ...patch }
+          : frame;
+      });
     }
 
     // Project ID remains the permanent storage identity.
