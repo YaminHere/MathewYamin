@@ -10,6 +10,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { unstable_cache, revalidateTag } from "next/cache";
 
 function getConfig() {
   const accountId = process.env.R2_ACCOUNT_ID;
@@ -147,6 +148,8 @@ export async function createR2Project(
     })
   );
 
+  revalidateTag("r2-projects", { expire: 0 });
+
   return project;
 }
 
@@ -165,6 +168,8 @@ export async function saveR2Project(
     })
   );
 
+  revalidateTag("r2-projects", { expire: 0 });
+
   return project;
 }
 
@@ -180,9 +185,10 @@ export async function deleteR2ProjectMetadata(
       Key: key,
     })
   );
+      revalidateTag("r2-projects", { expire: 0 });
 }
 
-export async function listR2Projects(): Promise<R2Project[]> {
+async function listR2ProjectsUncached(): Promise<R2Project[]> {
   const client = getR2Client();
   const bucket = getR2Bucket();
 
@@ -258,6 +264,16 @@ export async function listR2Projects(): Promise<R2Project[]> {
 
   return projects;
 }
+
+export const listR2Projects: () => Promise<R2Project[]> =
+  unstable_cache(
+    listR2ProjectsUncached,
+    ["r2-projects"],
+    {
+      revalidate: 300,
+      tags: ["r2-projects"],
+    }
+  );
 
 // -----------------------------------------------------------------------------
 // Connection and media operations
