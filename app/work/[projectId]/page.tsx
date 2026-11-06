@@ -157,6 +157,7 @@ function ProjectFrame({
             <iframe
                 src={frame.src}
                 title={frame.title}
+                loading="lazy"
                 className="h-[80vh] w-full rounded-2xl border border-black/10 dark:border-white/10"
             />
         )
@@ -166,6 +167,8 @@ function ProjectFrame({
         <img
             src={frame.src}
             alt={frame.title}
+            loading="lazy"
+            decoding="async"
             className="w-full rounded-2xl"
         />
     )

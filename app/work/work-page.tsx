@@ -562,11 +562,19 @@ export default function WorkPage({
   const viewportRef =
     useRef<HTMLDivElement>(null);
 
+  const lastThumbnailPlaybackUpdateRef =
+    useRef(0);
+
+    const lastOverlayUpdateRef = useRef(0);
+
   const canvasRef =
-    useRef<HTMLDivElement>(null);
+  useRef<HTMLDivElement>(null);
+
+  const [canvasReady, setCanvasReady] = useState(false);
+  const canvasReadyRef = useRef(false);
 
   const screenLabelLayerRef =
-  useRef<HTMLDivElement | null>(null);
+    useRef<HTMLDivElement | null>(null);
 
   // --------------------------------------------------
   // CAMERA
@@ -594,6 +602,8 @@ export default function WorkPage({
     x: 0,
     y: 0,
   });
+
+  const onboardingPanTriggered = useRef(false);
 
   const cameraStart = useRef({
     x: 0,
@@ -1348,148 +1358,103 @@ useEffect(() => {
 
 useEffect(() => {
   const loadProjects = async () => {
-    console.log("LOAD PROJECTS RUN");
-    const projectsResponse =
-      await fetch(
-        "/api/work/projects"
-      );
+  console.log("LOAD PROJECTS RUN");
 
-    if (!projectsResponse.ok) {
-      throw new Error(
-        "Failed to load project list"
-      );
-    }
+  const projectsResponse = await fetch("/api/work/projects");
 
-    const {
-      projects: projectIds,
-    } =
-      await projectsResponse.json();
-
-    const loadedProjectData =
-  await Promise.all(
-    projectIds.map(
-      async (projectId: string) => {
-        const projectResponse = await fetch(
-  `/api/work/project/${encodeURIComponent(projectId)}`
-);
-
-        if (!projectResponse.ok) {
-          throw new Error(
-            `Failed to load project: ${projectId}`
-          );
-        }
-
-        const project =
-          (await projectResponse.json()) as Project;
-
-        return project;
-      }
-    )
-  );
-
-const loadedProjects =
-  loadedProjectData.map(
-    (project) =>
-      project
-  );
-
-setProjects(
-  loadedProjects
-);
-
-savedProjectsRef.current =
-  Object.fromEntries(
-    loadedProjectData.map(
-      (project) => [
-        project.id,
-        structuredClone(project),
-      ]
-    )
-  );
-
-    const initialProjectScales =
-      Object.fromEntries(
-        loadedProjects.map(
-          (project) => [
-            project.id,
-            project.scale ?? 1,
-          ]
-        )
-      );
-
-    setProjectScales(
-      initialProjectScales
-    );
-
-    const initialPositions =
-      Object.fromEntries(
-        loadedProjects.map(
-          (project) => [
-            project.id,
-            {
-              x: project.position.x,
-              y: project.position.y,
-            },
-          ]
-        )
-      );
-
-    const initialFramePositions: Record<
-  string,
-  { x: number; y: number }
-> = {};
-
-for (const project of loadedProjects) {
-  for (const frame of project.frames) {
-    initialFramePositions[
-      `${project.id}:${frame.id}`
-    ] = {
-      x: frame.position.x,
-      y: frame.position.y,
-    };
+  if (!projectsResponse.ok) {
+    throw new Error("Failed to load project list");
   }
-}
 
-const initialFrameSizes: Record<
-  string,
-  { width: number; height: number }
-> = {};
+  const {
+    projects: loadedProjectData,
+  }: {
+    projects: Project[];
+  } = await projectsResponse.json();
 
-for (const project of loadedProjects) {
-  for (const frame of project.frames) {
-    if (
-      frame.width !== undefined &&
-      frame.height !== undefined
-    ) {
-      initialFrameSizes[
-        `${project.id}:${frame.id}`
-      ] = {
-        width: frame.width,
-        height: frame.height,
+  const loadedProjects = loadedProjectData;
+
+  setProjects(loadedProjects);
+
+  savedProjectsRef.current = Object.fromEntries(
+    loadedProjectData.map((project) => [
+      project.id,
+      structuredClone(project),
+    ])
+  );
+
+  const initialProjectScales = Object.fromEntries(
+    loadedProjects.map((project) => [
+      project.id,
+      project.scale ?? 1,
+    ])
+  );
+
+  setProjectScales(initialProjectScales);
+
+  const initialPositions = Object.fromEntries(
+    loadedProjects.map((project) => [
+      project.id,
+      {
+        x: project.position.x,
+        y: project.position.y,
+      },
+    ])
+  );
+
+  const initialFramePositions: Record<
+    string,
+    { x: number; y: number }
+  > = {};
+
+  for (const project of loadedProjects) {
+    for (const frame of project.frames) {
+      initialFramePositions[`${project.id}:${frame.id}`] = {
+        x: frame.position.x,
+        y: frame.position.y,
       };
     }
   }
-}
-    setProjectPositions(
-      initialPositions
-    );
 
-    setFramePositions(
-      initialFramePositions
-    );
+  const initialFrameSizes: Record<
+    string,
+    { width: number; height: number }
+  > = {};
 
-    setFrameSizes(
-      initialFrameSizes
-    );
+  for (const project of loadedProjects) {
+    for (const frame of project.frames) {
+      if (
+        frame.width !== undefined &&
+        frame.height !== undefined
+      ) {
+        initialFrameSizes[`${project.id}:${frame.id}`] = {
+          width: frame.width,
+          height: frame.height,
+        };
+      }
+    }
+  }
 
-    setPhysicsPositions(
-      initialPositions
-    );
+  setProjectPositions(initialPositions);
+  setFramePositions(initialFramePositions);
+  setFrameSizes(initialFrameSizes);
 
+  requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    if (
+      viewportRef.current &&
+      canvasRef.current &&
+      viewportRef.current.clientWidth > 0 &&
+      viewportRef.current.clientHeight > 0 &&
+      loadedProjects.length > 0
+    ) {
+            canvasReadyRef.current = true;
+      setCanvasReady(true);
 
-
-
-  };
+    }
+  });
+});
+};
 
   loadProjects().catch(
     console.error
@@ -2126,15 +2091,14 @@ useEffect(() => {
 
 
 const updateVideoPlayback = () => {
-  const viewport =
-    viewportRef.current;
+  const viewport = viewportRef.current;
 
-  if (!viewport) {
-    return;
-  }
+  if (!viewport) return;
 
-  const rect =
-    viewport.getBoundingClientRect();
+  const rect = viewport.getBoundingClientRect();
+
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
 
   const {
     x: cameraX,
@@ -2142,126 +2106,242 @@ const updateVideoPlayback = () => {
     scale: cameraScale,
   } = camera.current;
 
-  projectsRef.current.forEach(
-    (project) => {
-      const projectPosition =
-        projectPositionsRef.current[
-          project.id
-        ] ??
-        project.position;
+  const now = performance.now();
 
-      const projectScale =
-        projectScalesRef.current[
-          project.id
-        ] ?? 1;
+  const shouldUpdateThumbnails =
+    now - lastThumbnailPlaybackUpdateRef.current >= 50;
 
-      project.frames.forEach(
-        (frame) => {
-          if (frame.type !== "video") {
-            return;
-          }
+  if (shouldUpdateThumbnails) {
+    lastThumbnailPlaybackUpdateRef.current = now;
+  }
 
-          const frameKey =
-            `${project.id}:${frame.id}`;
+  projectsRef.current.forEach((project) => {
 
-          const element =
-            frameElementRefs.current[
-              frameKey
-            ];
 
-          if (!element) {
-            return;
-          }
+    // ------------------------------------------
+// PROJECT THUMBNAIL PLAYBACK
+// ------------------------------------------
 
-          const video =
-            element.querySelector(
-              "video"
-            );
+if (shouldUpdateThumbnails) {
+  const projectElement =
+    projectElementRefs.current[project.id];
 
-          if (!video) {
-            return;
-          }
+  // ------------------------------------------
+  // PROJECT FOCUS BLUR
+  // ------------------------------------------
 
-          const framePosition =
-            framePositions[
-              frameKey
-            ] ?? {
-              x: 0,
-              y: 0,
-            };
+  if (projectElement) {
+    const cardRect =
+      projectElement.getBoundingClientRect();
 
-          const frameSize =
-            frameSizes[
-              frameKey
-            ];
+    const focusHalfWidth = Math.min(300, rect.width / 2);
+    const focusHalfHeight = Math.min(300, rect.height / 2);
 
-          if (!frameSize) {
-            return;
-          }
+    const focusLeft = centerX - focusHalfWidth;
+    const focusRight = centerX + focusHalfWidth;
+    const focusTop = centerY - focusHalfHeight;
+    const focusBottom = centerY + focusHalfHeight;
 
-          const worldX =
-            projectPosition.x +
-            PROJECT_PADDING +
-            framePosition.x *
-              projectScale;
+    const distanceX =
+      cardRect.right < focusLeft
+        ? focusLeft - cardRect.right
+        : cardRect.left > focusRight
+        ? cardRect.left - focusRight
+        : 0;
 
-          const worldY =
-            projectPosition.y +
-            PROJECT_PADDING +
-            framePosition.y *
-              projectScale;
+    const distanceY =
+      cardRect.bottom < focusTop
+        ? focusTop - cardRect.bottom
+        : cardRect.top > focusBottom
+        ? cardRect.top - focusBottom
+        : 0;
 
-          const screenX =
-            cameraX +
-            worldX * cameraScale;
+    const availableX = Math.max(
+      1,
+      rect.width / 2 - focusHalfWidth
+    );
 
-          const screenY =
-            cameraY +
-            worldY * cameraScale;
+    const availableY = Math.max(
+      1,
+      rect.height / 2 - focusHalfHeight
+    );
 
-          const screenWidth =
-            frameSize.width *
-            projectScale *
-            cameraScale;
+    const progress = Math.min(
+      1,
+      Math.max(
+        distanceX / availableX,
+        distanceY / availableY
+      )
+    );
 
-          const screenHeight =
-            frameSize.height *
-            projectScale *
-            cameraScale;
+    const easedProgress =
+      progress * progress * (3 - 2 * progress);
 
-          const margin = 300;
+    const blurAmount = 3 * easedProgress;
 
-          const isNearViewport =
-            screenX <
-              rect.width + margin &&
-            screenX +
-              screenWidth >
-              -margin &&
-            screenY <
-              rect.height + margin &&
-            screenY +
-              screenHeight >
-              -margin;
+    projectElement.style.setProperty(
+      "--canvas-focus-blur",
+      `${blurAmount.toFixed(2)}px`
+    );
+  }
 
-          if (isNearViewport) {
-            if (
-              video.paused
-            ) {
-              video
-                .play()
-                .catch(() => {});
-            }
-          } else {
-            if (
-              !video.paused
-            ) {
-              video.pause();
-            }
-          }
-        }
+
+  const thumbnailVideo =
+    projectElement?.querySelector<HTMLVideoElement>(
+      "video[data-canvas-thumbnail]"
+    );
+
+  if (thumbnailVideo) {
+    const videoRect =
+      thumbnailVideo.getBoundingClientRect();
+
+    // Focus area adapts to viewport dimensions.
+    const focusHalfWidth = Math.min(300, rect.width / 2);
+    const focusHalfHeight = Math.min(300, rect.height / 2);
+
+    const focusLeft = rect.left + rect.width / 2 - focusHalfWidth;
+    const focusRight = rect.left + rect.width / 2 + focusHalfWidth;
+
+    const focusTop = rect.top + rect.height / 2 - focusHalfHeight;
+    const focusBottom = rect.top + rect.height / 2 + focusHalfHeight;
+
+    // Pause only when the entire thumbnail leaves the viewport.
+    const completelyOutside =
+      videoRect.right <= rect.left ||
+      videoRect.left >= rect.right ||
+      videoRect.bottom <= rect.top ||
+      videoRect.top >= rect.bottom;
+
+    if (completelyOutside) {
+      thumbnailVideo.pause();
+    } else {
+      const distanceX =
+        videoRect.right < focusLeft
+          ? focusLeft - videoRect.right
+          : videoRect.left > focusRight
+          ? videoRect.left - focusRight
+          : 0;
+
+      const distanceY =
+        videoRect.bottom < focusTop
+          ? focusTop - videoRect.bottom
+          : videoRect.top > focusBottom
+          ? videoRect.top - focusBottom
+          : 0;
+
+      const availableX =
+        Math.max(1, rect.width / 2 - focusHalfWidth);
+
+      const availableY =
+        Math.max(1, rect.height / 2 - focusHalfHeight);
+
+      const progress = Math.min(
+        1,
+        Math.max(
+          distanceX / availableX,
+          distanceY / availableY
+        )
       );
+
+      // Quadratic easing: 1x gradually approaches 0.1x.
+      const easedProgress =
+          progress * progress * (3 - 2 * progress);
+
+        const speed = 1 - 0.9 * easedProgress;
+
+      if (
+        Math.abs(thumbnailVideo.playbackRate - speed) > 0.02
+      ) {
+        thumbnailVideo.playbackRate = speed;
+      }
+
+      if (thumbnailVideo.paused) {
+        thumbnailVideo.play().catch(() => {});
+      }
     }
-  );
+  }
+}
+
+    // ------------------------------------------
+    // PROJECT FRAME VIDEO PLAYBACK
+    // ------------------------------------------
+
+    const projectPosition =
+      projectPositionsRef.current[project.id] ??
+      project.position;
+
+    const projectScale =
+      projectScalesRef.current[project.id] ?? 1;
+
+    project.frames.forEach((frame) => {
+      if (frame.type !== "video") return;
+
+      const frameKey = `${project.id}:${frame.id}`;
+
+      const element =
+        frameElementRefs.current[frameKey];
+
+      if (!element) return;
+
+      const video = element.querySelector("video");
+
+      if (!video) return;
+
+      const framePosition =
+        framePositions[frameKey] ?? {
+          x: 0,
+          y: 0,
+        };
+
+      const frameSize = frameSizes[frameKey];
+
+      if (!frameSize) return;
+
+      const worldX =
+        projectPosition.x +
+        PROJECT_PADDING +
+        framePosition.x * projectScale;
+
+      const worldY =
+        projectPosition.y +
+        PROJECT_PADDING +
+        framePosition.y * projectScale;
+
+      const screenX =
+        cameraX + worldX * cameraScale;
+
+      const screenY =
+        cameraY + worldY * cameraScale;
+
+      const screenWidth =
+        frameSize.width *
+        projectScale *
+        cameraScale;
+
+      const screenHeight =
+        frameSize.height *
+        projectScale *
+        cameraScale;
+
+      const margin = 300;
+
+      const isNearViewport =
+        screenX < rect.width + margin &&
+        screenX + screenWidth > -margin &&
+        screenY < rect.height + margin &&
+        screenY + screenHeight > -margin;
+
+      if (isNearViewport) {
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
+      } else {
+        if (!video.paused) {
+          video.pause();
+        }
+      }
+    });
+  });
 };
 
 
@@ -2270,185 +2350,131 @@ const updateVideoPlayback = () => {
 // CAMERA TRANSFORM
 // --------------------------------------------------
 
+const updateProjectHeaders = () => {
+  const viewport = viewportRef.current;
+  if (!viewport) return;
+
+  const viewportRect = viewport.getBoundingClientRect();
+  const cameraScale = camera.current.scale;
+
+  projectsRef.current.forEach((project) => {
+    const header = projectHeaderRefs.current[project.id];
+    const boundary = projectBoundaryRefs.current[project.id];
+
+    if (!header || !boundary) return;
+
+    const boundaryRect = boundary.getBoundingClientRect();
+    const gap = 8 * cameraScale;
+
+    const x = boundaryRect.left - viewportRect.left;
+    const y =
+      boundaryRect.top -
+      viewportRect.top -
+      gap -
+      header.offsetHeight;
+
+    header.style.width = `${boundaryRect.width}px`;
+
+    const width = boundaryRect.width;
+    const mode =
+      width < 180 ? "arrow" :
+      width < 260 ? "short" :
+      "full";
+
+    setProjectHeaderModes((current) => {
+      if (current[project.id] === mode) return current;
+      return { ...current, [project.id]: mode };
+    });
+
+    header.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  });
+};
+
 const updateScreenSpaceLabels = () => {
   const viewport = viewportRef.current;
   if (!viewport) return;
 
-  const viewportRect =
-    viewport.getBoundingClientRect();
-
-  const cameraScale =
-    camera.current.scale;
+  const viewportRect = viewport.getBoundingClientRect();
+  const cameraScale = camera.current.scale;
 
   projectsRef.current.forEach((project) => {
-    const header =
-      projectHeaderRefs.current[project.id];
-
-    const boundary =
-      projectBoundaryRefs.current[project.id];
-
-    if (header && boundary) {
-      const boundaryRect =
-        boundary.getBoundingClientRect();
-
-      const gap =
-        8 * cameraScale;
-
-      const x =
-        boundaryRect.left -
-        viewportRect.left;
-
-      const y =
-        boundaryRect.top -
-        viewportRect.top -
-        gap -
-        header.offsetHeight;
-
-      header.style.width =
-        `${boundaryRect.width}px`;
-
-         // ------------------------------------------------
-  // VIEW PROJECT LABEL MODE
-  // ------------------------------------------------
-
-  const width =
-    boundaryRect.width;
-
-  let mode:
-    "full" |
-    "short" |
-    "arrow";
-
-  if (width < 180) {
-    mode = "arrow";
-  } else if (width < 260) {
-    mode = "short";
-  } else {
-    mode = "full";
-  }
-
-  setProjectHeaderModes((current) => {
-    if (current[project.id] === mode) {
-      return current;
-    }
-
-    return {
-      ...current,
-      [project.id]: mode,
-    };
-  });
-
-      header.style.transform =
-        `translate3d(${x}px, ${y}px, 0)`;
-    }
-
     project.frames.forEach((frame) => {
-      const frameKey =
-        `${project.id}:${frame.id}`;
+      const frameKey = `${project.id}:${frame.id}`;
+      const frameElement = frameElementRefs.current[frameKey];
+      const label = frameLabelRefs.current[frameKey];
 
-      const frameElement =
-        frameElementRefs.current[frameKey];
+      if (!frameElement || !label) return;
 
-      const label =
-        frameLabelRefs.current[frameKey];
+      const frameRect = frameElement.getBoundingClientRect();
+      const gap = 8 * cameraScale;
 
-      if (!frameElement || !label) {
-        return;
-      }
-
-      const frameRect =
-        frameElement.getBoundingClientRect();
-
-      const gap =
-        8 * cameraScale;
-
-      const x =
-        frameRect.left -
-        viewportRect.left;
-
+      const x = frameRect.left - viewportRect.left;
       const y =
         frameRect.top -
         viewportRect.top -
         gap -
         label.offsetHeight;
 
-      label.style.transform =
-        `translate3d(${x}px, ${y}px, 0)`;
+      label.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     });
   });
 
   updateVideoPlayback();
 };
 
-const applyTransform = () => {
-  const canvas =
-    canvasRef.current;
 
+const applyTransform = (updateOverlays = true) => {
+  const canvas = canvasRef.current;
   if (!canvas) return;
 
-  const {
-    x,
-    y,
-    scale,
-  } = camera.current;
+  const { x, y, scale } = camera.current;
 
   canvas.style.transform =
     `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 
-  updateScreenSpaceLabels();
+  if (updateOverlays) {
+    updateProjectHeaders();
+    updateScreenSpaceLabels();
+    lastOverlayUpdateRef.current = performance.now();
+  }
 };
 
 const animateCamera = () => {
-  const current =
-    camera.current;
-
-  const target =
-    targetCamera.current;
+  const current = camera.current;
+  const target = targetCamera.current;
 
   const ease = 0.08;
 
-  current.x +=
-    (target.x - current.x) *
-    ease;
-
-  current.y +=
-    (target.y - current.y) *
-    ease;
-
-  current.scale +=
-    (target.scale - current.scale) *
-    ease;
+  current.x += (target.x - current.x) * ease;
+  current.y += (target.y - current.y) * ease;
+  current.scale += (target.scale - current.scale) * ease;
 
   if (
-    Math.abs(
-      target.x -
-        current.x
-    ) < 0.01 &&
-    Math.abs(
-      target.y -
-        current.y
-    ) < 0.01 &&
-    Math.abs(
-      target.scale -
-        current.scale
-    ) < 0.0001
+    Math.abs(target.x - current.x) < 0.01 &&
+    Math.abs(target.y - current.y) < 0.01 &&
+    Math.abs(target.scale - current.scale) < 0.0001
   ) {
-    current.x =
-      target.x;
-
-    current.y =
-      target.y;
-
-    current.scale =
-      target.scale;
+    current.x = target.x;
+    current.y = target.y;
+    current.scale = target.scale;
   }
 
-  applyTransform();
+  // Update the canvas transform every animation frame.
+  applyTransform(false);
+
+  // Keep project headers tracking the camera smoothly.
+updateProjectHeaders();
+
+  // Update labels and video visibility at approximately 30fps.
+  const now = performance.now();
+
+  if (now - lastOverlayUpdateRef.current >= 33) {
+    updateScreenSpaceLabels();
+    lastOverlayUpdateRef.current = now;
+  }
 
   animationFrame.current =
-    requestAnimationFrame(
-      animateCamera
-    );
+    requestAnimationFrame(animateCamera);
 };
 
 useEffect(() => {
@@ -2669,19 +2695,32 @@ const handlePointerMove = (
   // ------------------------------------------------
 
   if (
-    pointers.length === 1 &&
-    dragging
-  ) {
-    targetCamera.current.x =
-      cameraStart.current.x +
-      (e.clientX -
-        dragStart.current.x);
+  pointers.length === 1 &&
+  dragging
+) {
+  const deltaX =
+    e.clientX - dragStart.current.x;
 
-    targetCamera.current.y =
-      cameraStart.current.y +
-      (e.clientY -
-        dragStart.current.y);
-  }
+  const deltaY =
+    e.clientY - dragStart.current.y;
+
+  if (
+  !onboardingPanTriggered.current &&
+  Math.hypot(deltaX, deltaY) >= 5
+) {
+  onboardingPanTriggered.current = true;
+
+  window.dispatchEvent(
+    new Event("canvas-onboarding-pan")
+  );
+}
+
+  targetCamera.current.x =
+    cameraStart.current.x + deltaX;
+
+  targetCamera.current.y =
+    cameraStart.current.y + deltaY;
+}
 };
 
 const handlePointerUp = (
@@ -3729,6 +3768,10 @@ const dy =
       return;
     }
 
+    window.dispatchEvent(
+  new Event("canvas-onboarding-zoom")
+);
+
     const canvasX =
       (mouseX -
         targetCamera.current
@@ -3754,6 +3797,11 @@ const dy =
     targetCamera.current.scale =
       nextScale;
   };
+
+
+  useEffect(() => {
+  onboardingPanTriggered.current = false;
+}, []);
 
 
 // --------------------------------------------------
@@ -4626,6 +4674,8 @@ const anchorY =
         projectY: project.y,
       };
 
+      e.currentTarget.dataset.cursorState = 'drag';
+
       e.currentTarget.setPointerCapture(
         e.pointerId
       );
@@ -4702,6 +4752,8 @@ const anchorY =
     ) => {
       projectDrag.current =
         null;
+
+        delete e.currentTarget.dataset.cursorState;
 
       if (
         e.currentTarget.hasPointerCapture(
@@ -4850,6 +4902,7 @@ const anchorY =
 
   <Link
     href="/"
+    data-cursor-target="home"
     className="pointer-events-auto flex items-center gap-2.5 transition-opacity hover:opacity-50"
   >
     <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-black/15 text-[11px] font-medium tracking-[-0.05em] dark:border-white/15 sm:h-8 sm:w-8 sm:text-[12px]">
@@ -4874,6 +4927,7 @@ const anchorY =
 
     <button
       onClick={resetView}
+      data-cursor-target="allWork"
       className="transition-opacity hover:opacity-50"
     >
       ALL WORK
@@ -4882,6 +4936,7 @@ const anchorY =
     {sections.map((section) => (
       <button
         key={section.id}
+        data-cursor-target="section"
         onClick={() => goToSection(section)}
         className="transition-opacity hover:opacity-50"
       >
@@ -4898,6 +4953,7 @@ const anchorY =
           onClick={() => {
             setCreatingProject(true);
           }}
+          data-cursor-target="newProject"
           className="transition-opacity hover:opacity-50"
         >
           NEW PROJECT
@@ -4906,6 +4962,7 @@ const anchorY =
         <button
           type="button"
           onClick={saveAllProjects}
+          data-cursor-target="save"
           disabled={isSaving}
           className="transition-opacity hover:opacity-50 disabled:cursor-not-allowed disabled:opacity-30"
         >
@@ -4950,6 +5007,8 @@ const anchorY =
         onPointerCancel={
           handlePointerUp
         }
+        data-cursor-target="canvas"
+
       >
 
         {/* CANVAS */}
@@ -5032,8 +5091,8 @@ containIntrinsicSize: `${renderedProjectWidth}px ${renderedProjectHeight}px`,
 filter:
   activeClassification &&
   !project.classifications.includes(activeClassification)
-    ? "blur(8px)"
-    : "none",
+    ? "blur(8px) blur(var(--canvas-focus-blur, 0px))"
+    : "blur(var(--canvas-focus-blur, 0px))",
 opacity:
   activeClassification &&
   !project.classifications.includes(activeClassification)
@@ -5062,6 +5121,7 @@ opacity:
       onPointerLeave={() => {
         setHoveredProjectId(null);
       }}
+      data-cursor-target="project"
     >
 
      {/* PROJECT BOUNDARY */}
@@ -5088,7 +5148,7 @@ opacity:
 
   transformOrigin: "center center",
 
-  transition: "transform 300ms ease-out",
+  transition: "none",
 }}
 >
   <div
@@ -5131,12 +5191,12 @@ opacity:
   if (thumbnail.type === "video") {
     return (
       <video
+        data-canvas-thumbnail
         src={thumbnail.src}
         className="block h-auto"
         style={mediaStyle}
         muted
         loop
-        autoPlay
         playsInline
         preload="metadata"
       />
@@ -5144,8 +5204,9 @@ opacity:
   }
 
   return (
-    <img
-      src={thumbnail.src}
+  <img
+    data-canvas-thumbnail
+    src={thumbnail.src}
       alt={`${project.title} thumbnail`}
       className="block h-auto"
       style={mediaStyle}
@@ -5191,6 +5252,7 @@ opacity:
                 handleProjectResizePointerUp
               }
               aria-label={`Resize ${project.title}`}
+              data-cursor-target="resize"
             />
           )}
 
@@ -5938,6 +6000,7 @@ editingFrameTitle === frameKey
 
         <button
   onClick={() => zoom(-0.1)}
+  data-cursor-target="zoomOut"
   className="flex h-8 w-8 items-center justify-center rounded-full text-sm hover:bg-black/5 sm:h-9 sm:w-9"
 >
   −
@@ -5952,6 +6015,7 @@ editingFrameTitle === frameKey
 
 <button
   onClick={() => zoom(0.1)}
+  data-cursor-target="zoomIn"
   className="flex h-8 w-8 items-center justify-center rounded-full text-sm hover:bg-black/5 sm:h-9 sm:w-9"
 >
   +

@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      projects: ids,
+      projects,
     });
   } catch (error) {
     console.error("Failed to load project list:", error);
