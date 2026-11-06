@@ -37,6 +37,7 @@ export function FrameManager({
   useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
+  const [savingOrder, setSavingOrder] = useState(false);
 
   async function handleFiles(
     event: React.ChangeEvent<HTMLInputElement>
@@ -248,6 +249,13 @@ async function deleteFrame(frameId: string) {
 
 
 async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
+  if (savingOrder) return;
+
+  const previousFrames = frames;
+
+  // Update the UI immediately.
+  setFrames(updatedFrames);
+  setSavingOrder(true);
   setStatus("");
 
   try {
@@ -269,19 +277,24 @@ async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
       throw new Error(result.error || "Failed to save frame order");
     }
 
-    setFrames(updatedFrames);
     setStatus("Frame order saved.");
-    router.refresh();
   } catch (error) {
+    // Restore the previous order if saving fails.
+    setFrames(previousFrames);
+
     setStatus(
       error instanceof Error
         ? error.message
         : "Failed to save frame order."
     );
+  } finally {
+    setSavingOrder(false);
   }
 }
 
 async function moveFrame(index: number, direction: -1 | 1) {
+  if (savingOrder) return;
+
   const targetIndex = index + direction;
 
   if (targetIndex < 0 || targetIndex >= frames.length) return;
@@ -300,8 +313,9 @@ async function moveFrame(index: number, direction: -1 | 1) {
         <div>
           <h2 className="text-sm font-medium">Project frames</h2>
           <p className="mt-1 text-xs text-black/40 dark:text-white/40">
-            {frames.length} frame{frames.length === 1 ? "" : "s"}
-          </p>
+  {frames.length} frame{frames.length === 1 ? "" : "s"}
+  {savingOrder && " · Saving order..."}
+</p>
         </div>
 
 
@@ -310,7 +324,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
 
 <div
   key={frame.id}
-  draggable={!uploading && deletingFrameId === null}
+  draggable={!uploading && !savingOrder && deletingFrameId === null}
   onDragStart={() => setDraggedFrameId(frame.id)}
   onDragOver={(event) => event.preventDefault()}
   onDrop={async (event) => {
@@ -332,7 +346,11 @@ async function moveFrame(index: number, direction: -1 | 1) {
     updatedFrames.splice(toIndex, 0, movedFrame);
 
     setDraggedFrameId(null);
-    await saveFrameOrder(updatedFrames);
+
+    if (!savingOrder) {
+      await saveFrameOrder(updatedFrames);
+    }
+
   }}
   onDragEnd={() => setDraggedFrameId(null)}
   className={`group relative overflow-hidden rounded-xl border border-black/10 dark:border-white/10 ${
@@ -358,6 +376,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
     disabled={
       index === 0 ||
       uploading ||
+      savingOrder ||
       deletingFrameId !== null
     }
     onClick={() => moveFrame(index, -1)}
@@ -372,6 +391,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
     disabled={
       index === frames.length - 1 ||
       uploading ||
+      savingOrder ||
       deletingFrameId !== null
     }
     onClick={() => moveFrame(index, 1)}
@@ -383,7 +403,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
 
   <button
     type="button"
-    disabled={uploading || deletingFrameId !== null}
+    disabled={uploading || savingOrder || deletingFrameId !== null}
     onClick={() => deleteFrame(frame.id)}
     className="text-xs text-red-600 transition-opacity hover:opacity-50 disabled:opacity-40"
   >
@@ -424,7 +444,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
 
         <button
           type="button"
-          disabled={uploading}
+          disabled={uploading || savingOrder}
           onClick={() => fileInputRef.current?.click()}
           className="border border-black/15 px-4 py-2 text-xs uppercase tracking-wider transition-opacity hover:opacity-50 disabled:opacity-40 dark:border-white/20"
         >
