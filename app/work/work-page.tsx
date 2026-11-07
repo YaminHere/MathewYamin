@@ -1347,13 +1347,18 @@ const saveAllProjects = async () => {
   try {
     const failedProjectIds: string[] = [];
 
-    for (const project of projectsRef.current) {
-      const saved = await saveProject(project.id);
+    const saveResults = await Promise.all(
+  projectsRef.current.map(async (project) => ({
+    projectId: project.id,
+    saved: await saveProject(project.id),
+  }))
+);
 
-      if (!saved) {
-        failedProjectIds.push(project.id);
-      }
-    }
+failedProjectIds.push(
+  ...saveResults
+    .filter((result) => !result.saved)
+    .map((result) => result.projectId)
+);
 
     if (failedProjectIds.length > 0) {
       throw new Error(
