@@ -200,7 +200,7 @@ export function CanvasPreview({
                                     {thumbnail.type === 'video' ? (
                                         <video
                                             src={thumbnail.src}
-                                            preload="none"
+                                            preload="auto"
                                             muted
                                             playsInline
                                             className="aspect-video w-full object-cover"
