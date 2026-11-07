@@ -4,7 +4,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { optimizeImage } from "@/lib/image-optimizer";
-import { PdfViewer } from "@/components/ui/pdf-viewer";
+import dynamic from "next/dynamic";
+
+const PdfViewer = dynamic(
+  () => import("@/components/ui/pdf-viewer").then((mod) => mod.PdfViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[300px] items-center justify-center text-sm text-black/40 dark:text-white/40">
+        Loading PDF...
+      </div>
+    ),
+  }
+);
 
 type ProjectFrame = {
   id: string;
@@ -43,7 +55,7 @@ export function FrameManager({
   const [converterToken, setConverterToken] = useState("");
   const [converterConnected, setConverterConnected] = useState(false);
 
-  async function connectConverter() {
+  async function connectConverter(token = converterToken) {
   setConverterConnected(false);
   setStatus("Connecting to local video converter...");
 
@@ -53,7 +65,7 @@ export function FrameManager({
       {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${converterToken}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -66,6 +78,9 @@ export function FrameManager({
       );
     }
 
+    localStorage.setItem("local-video-converter-token", token);
+
+    setConverterToken(token);
     setConverterConnected(true);
     setStatus("Local video converter connected.");
   } catch (error) {
@@ -78,6 +93,16 @@ export function FrameManager({
   }
 }
 
+useEffect(() => {
+  const savedToken = localStorage.getItem(
+    "local-video-converter-token"
+  );
+
+  if (savedToken) {
+    setConverterToken(savedToken);
+    connectConverter(savedToken);
+  }
+}, []);
 
   const [savingOrder, setSavingOrder] = useState(false);
   const [fileDragActive, setFileDragActive] = useState(false);
@@ -762,47 +787,6 @@ async function moveFrame(index: number, direction: -1 | 1) {
 </div>
 
 
-<div className="mb-5 flex flex-wrap items-end gap-3">
-  <div className="min-w-[240px] flex-1">
-    <label
-      htmlFor="converter-token"
-      className="mb-2 block text-xs uppercase tracking-wider text-black/60 dark:text-white/60"
-    >
-      Local video converter token
-    </label>
-
-    <input
-      id="converter-token"
-      type="password"
-      value={converterToken}
-      onChange={(event) => {
-        setConverterToken(event.target.value);
-        setConverterConnected(false);
-      }}
-      placeholder="Enter your local converter token"
-      autoComplete="off"
-      spellCheck={false}
-      className="w-full border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/50 dark:border-white/20 dark:focus:border-white/50"
-    />
-  </div>
-
-  <button
-    type="button"
-    onClick={connectConverter}
-    disabled={!converterToken.trim() || uploading || savingOrder}
-    className="border border-black/15 px-4 py-2 text-xs uppercase tracking-wider transition-opacity hover:opacity-50 disabled:opacity-40 dark:border-white/20"
-  >
-    Connect converter
-  </button>
-
-  <p className="w-full text-xs text-black/50 dark:text-white/50">
-    {converterConnected
-      ? "Connected to local converter."
-      : "Required for MP4 uploads. Start the converter on this computer first."}
-  </p>
-</div>
-
-
         <button
           type="button"
           disabled={uploading || savingOrder}
@@ -830,7 +814,67 @@ async function moveFrame(index: number, direction: -1 | 1) {
           {status}
         </p>
       )}
-          </section>
+                </section>
+
+      {/* LOCAL VIDEO CONVERTER */}
+<section className="mx-auto max-w-6xl px-6 pb-6 pt-3">
+  <details className="group">
+    <summary className="flex w-fit cursor-pointer list-none items-center gap-2 text-[11px] text-black/40 transition-colors hover:text-black/70 dark:text-white/40 dark:hover:text-white/70">
+
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          converterConnected
+            ? "bg-emerald-500"
+            : "bg-amber-500"
+        }`}
+      />
+
+      <span>
+        {converterConnected
+          ? "Video converter ready"
+          : "Converter offline · Needed for MP4 uploads"}
+      </span>
+
+      <span className="ml-1 opacity-50 transition-transform group-open:rotate-180">
+        ↓
+      </span>
+    </summary>
+
+    <div className="mt-4 flex max-w-xl flex-wrap items-end gap-3 pb-3">
+      <div className="min-w-[220px] flex-1">
+        <label
+          htmlFor="converter-token"
+          className="mb-2 block text-[10px] uppercase tracking-wider text-black/40 dark:text-white/40"
+        >
+          Local converter token
+        </label>
+
+        <input
+          id="converter-token"
+          type="password"
+          value={converterToken}
+          onChange={(event) => {
+            setConverterToken(event.target.value);
+            setConverterConnected(false);
+          }}
+          placeholder="Converter token"
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full border-b border-black/20 bg-transparent py-2 text-xs outline-none focus:border-black dark:border-white/20 dark:focus:border-white"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => connectConverter()}
+        disabled={!converterToken.trim() || uploading || savingOrder}
+        className="pb-2 text-[10px] uppercase tracking-wider text-black/60 transition-opacity hover:opacity-50 disabled:opacity-30 dark:text-white/60"
+      >
+        {converterConnected ? "Reconnect" : "Connect"}
+      </button>
+    </div>
+  </details>
+</section>
     </>
   );
 }
