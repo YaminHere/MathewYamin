@@ -706,9 +706,11 @@ const [newProjectClassifications, setNewProjectClassifications] =
   const [projectZIndexes, setProjectZIndexes] =
   useState<Record<string, number>>({});
 
-
   const [uploadingFrameMedia, setUploadingFrameMedia] =
   useState(false);
+
+  const [draggingThumbnailProjectId, setDraggingThumbnailProjectId] =
+  useState<string | null>(null);
 
 const [uploadProgress, setUploadProgress] =
   useState({
@@ -730,6 +732,7 @@ const framePositionsRef =
   const frameFileInputRef =
   useRef<HTMLInputElement | null>(null);
 
+  const pendingThumbnailDropProjectId = useRef<string | null>(null);
 
   const projectZIndexesRef =
   useRef<Record<string, number>>({});
@@ -5190,12 +5193,82 @@ opacity:
       onPointerCancel={
         handleProjectPointerUp
       }
-      onPointerEnter={() => {
+            onPointerEnter={() => {
         setHoveredProjectId(project.id);
       }}
       onPointerLeave={() => {
         setHoveredProjectId(null);
       }}
+
+      onDragEnter={(e) => {
+        if (!isAdmin || uploadingFrameMedia) return;
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        setDraggingThumbnailProjectId(project.id);
+      }}
+
+      onDragOver={(e) => {
+        if (!isAdmin || uploadingFrameMedia) return;
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "copy";
+        setDraggingThumbnailProjectId(project.id);
+      }}
+
+      onDragLeave={(e) => {
+        if (
+          e.relatedTarget instanceof Node &&
+          e.currentTarget.contains(e.relatedTarget)
+        ) {
+          return;
+        }
+
+        setDraggingThumbnailProjectId(null);
+      }}
+
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        setDraggingThumbnailProjectId(null);
+
+        if (!isAdmin || uploadingFrameMedia) return;
+
+        const file = e.dataTransfer.files?.[0];
+
+        if (!file) return;
+
+        if (
+          !file.type.startsWith("image/") &&
+          !file.type.startsWith("video/")
+        ) {
+          console.warn("Please drop an image or video file.");
+          return;
+        }
+
+        const input = frameFileInputRef.current;
+
+        if (!input) return;
+
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+
+        input.value = "";
+        input.files = transfer.files;
+
+        pendingThumbnailDropProjectId.current = project.id;
+
+        setSelectingFrameMedia(`thumbnail:${project.id}`);
+
+        input.dispatchEvent(
+          new Event("change", { bubbles: true })
+        );
+      }}
+
       data-cursor-target="project"
     >
 
@@ -5226,6 +5299,15 @@ opacity:
   transition: "none",
 }}
 >
+
+    {isAdmin && draggingThumbnailProjectId === project.id && (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center rounded-3xl border-2 border-dashed border-blue-500 bg-blue-500/10 backdrop-blur-[2px]">
+      <div className="rounded-full bg-white px-5 py-3 text-[10px] font-medium uppercase tracking-[0.16em] text-black shadow-lg dark:bg-zinc-900 dark:text-white">
+        Drop to {project.thumbnail?.src ? "replace" : "add"} thumbnail
+      </div>
+    </div>
+  )}
+
   <div
   style={{
   position: "absolute",
@@ -6159,13 +6241,20 @@ editingFrameTitle === frameKey
     e.target.files ?? []
   );
 
-  if (files.length === 0) {
+    if (files.length === 0) {
+    pendingThumbnailDropProjectId.current = null;
     setSelectingFrameMedia(null);
     return;
   }
 
-  const selection =
-    selectingFrameMedia;
+  const droppedProjectId =
+    pendingThumbnailDropProjectId.current;
+
+  pendingThumbnailDropProjectId.current = null;
+
+  const selection = droppedProjectId
+    ? `thumbnail:${droppedProjectId}`
+    : selectingFrameMedia;
 
   if (!selection) {
     input.value = "";
