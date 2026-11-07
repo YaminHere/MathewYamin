@@ -6,6 +6,7 @@ import { getCanvasProjects } from '../project-library'
 import { EditableDescription } from './editable-description'
 import { FavoriteButton } from './favorite-button'
 import { FrameManager } from "./frame-manager";
+import { PdfViewer } from '@/components/ui/pdf-viewer'
 
 type ProjectPageProps = {
     params: Promise<{
@@ -85,7 +86,7 @@ export default async function ProjectPage({
                     initialDescription={description}
                     isAdmin={isAdmin}
                 />
-                
+
                 <div className="mt-4">
     <FavoriteButton
         projectId={project.id}
@@ -153,15 +154,13 @@ function ProjectFrame({
     }
 
     if (frame.type === 'pdf') {
-        return (
-            <iframe
-                src={frame.src}
-                title={frame.title}
-                loading="lazy"
-                className="h-[80vh] w-full rounded-2xl border border-black/10 dark:border-white/10"
-            />
-        )
-    }
+    return (
+        <PdfViewer
+            src={frame.src}
+            title={frame.title}
+        />
+    )
+}
 
     return (
         <img

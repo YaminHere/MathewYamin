@@ -1,9 +1,10 @@
 
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { optimizeImage } from "@/lib/image-optimizer";
+import { PdfViewer } from "@/components/ui/pdf-viewer";
 
 type ProjectFrame = {
   id: string;
@@ -38,14 +39,11 @@ export function FrameManager({
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
   const [savingOrder, setSavingOrder] = useState(false);
+  const [fileDragActive, setFileDragActive] = useState(false);
+  const fileDragDepthRef = useRef(0);
 
-  async function handleFiles(
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
-
-    if (!files.length) return;
+  async function uploadFiles(files: File[]) {
+  if (!files.length) return;
 
     setUploading(true);
     setStatus("");
@@ -192,8 +190,97 @@ console.log("Frame Manager optimization:", {
     }
   }
 
+function handleFiles(
+  event: React.ChangeEvent<HTMLInputElement>
+) {
+  const files = Array.from(event.currentTarget.files ?? []);
+  event.currentTarget.value = "";
 
+  void uploadFiles(files);
+}
 
+useEffect(() => {
+  const hasFiles = (event: DragEvent) =>
+    Array.from(event.dataTransfer?.types ?? []).includes("Files");
+
+  const handleDragEnter = (event: DragEvent) => {
+    if (!hasFiles(event)) return;
+
+    event.preventDefault();
+
+    if (uploading || savingOrder || deletingFrameId !== null) {
+      return;
+    }
+
+    fileDragDepthRef.current += 1;
+    setFileDragActive(true);
+  };
+
+  const handleDragOver = (event: DragEvent) => {
+    if (!hasFiles(event)) return;
+
+    event.preventDefault();
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handleDragLeave = (event: DragEvent) => {
+    if (!hasFiles(event)) return;
+
+    fileDragDepthRef.current -= 1;
+
+    if (fileDragDepthRef.current <= 0) {
+      fileDragDepthRef.current = 0;
+      setFileDragActive(false);
+    }
+  };
+
+  const handleDrop = (event: DragEvent) => {
+    if (!hasFiles(event)) return;
+
+    event.preventDefault();
+
+    fileDragDepthRef.current = 0;
+    setFileDragActive(false);
+
+    if (uploading || savingOrder || deletingFrameId !== null) {
+      setStatus("Please wait until the current operation finishes.");
+      return;
+    }
+
+    const files = Array.from(event.dataTransfer?.files ?? []);
+
+    if (!files.length) return;
+
+    const invalidFile = files.find(
+  (file) =>
+    !file.type.startsWith("image/") &&
+    !file.type.startsWith("video/") &&
+    file.type !== "application/pdf"
+);
+
+if (invalidFile) {
+  setStatus("Please drop image, video, or PDF files only.");
+  return;
+}
+
+    void uploadFiles(files);
+  };
+
+  document.addEventListener("dragenter", handleDragEnter);
+  document.addEventListener("dragover", handleDragOver);
+  document.addEventListener("dragleave", handleDragLeave);
+  document.addEventListener("drop", handleDrop);
+
+  return () => {
+    document.removeEventListener("dragenter", handleDragEnter);
+    document.removeEventListener("dragover", handleDragOver);
+    document.removeEventListener("dragleave", handleDragLeave);
+    document.removeEventListener("drop", handleDrop);
+  };
+}, [uploading, savingOrder, deletingFrameId, frames]);
 
 async function deleteFrame(frameId: string) {
   const frame = frames.find((item) => item.id === frameId);
@@ -246,6 +333,9 @@ async function deleteFrame(frameId: string) {
     setDeletingFrameId(null);
   }
 }
+
+
+
 
 
 async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
@@ -308,7 +398,26 @@ async function moveFrame(index: number, direction: -1 | 1) {
 
 
   return (
-    <section className="mb-10 border-y border-black/10 py-5 dark:border-white/10">
+    <>
+      {fileDragActive && (
+        <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-6 backdrop-blur-sm">
+          <div className="flex min-h-[240px] w-full max-w-2xl flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/80 bg-zinc-950/90 text-center text-white shadow-2xl">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-white/20">
+              <span className="text-3xl">+</span>
+            </div>
+
+            <p className="text-sm font-medium uppercase tracking-[0.2em]">
+              Drop to add frames
+            </p>
+
+            <p className="mt-3 text-xs text-white/50">
+              Images, videos, and PDFs · Multiple files supported
+            </p>
+          </div>
+        </div>
+      )}
+
+      <section className="mb-10 border-y border-black/10 py-5 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-sm font-medium">Project frames</h2>
@@ -424,12 +533,11 @@ async function moveFrame(index: number, direction: -1 | 1) {
             className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
           />
         ) : frame.type === "pdf" ? (
-          <iframe
-            src={frame.src}
-            title={frame.title}
-            className="h-[60vh] w-full rounded-lg"
-          />
-        ) : (
+  <PdfViewer
+    src={frame.src}
+    title={frame.title}
+  />
+) : (
           <img
             src={frame.src}
             alt={frame.title}
@@ -469,6 +577,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
           {status}
         </p>
       )}
-    </section>
+          </section>
+    </>
   );
 }
