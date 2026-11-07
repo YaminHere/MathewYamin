@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+﻿import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import {
   getR2ObjectInfo,
@@ -49,6 +49,8 @@ async function validateR2Media(
     );
   }
 
+
+
   const validContentType =
     type === "image"
       ? info.contentType.startsWith("image/") &&
@@ -77,6 +79,36 @@ async function validateR2Media(
   return {
     src: getR2PublicUrl(storageKey),
     storageKey,
+  };
+}
+
+async function validateR2Poster(
+  storageKey: unknown,
+  projectId: string
+) {
+  if (
+    typeof storageKey !== "string" ||
+    !storageKey.startsWith(`work/${projectId}/`) ||
+    storageKey.length <= `work/${projectId}/`.length
+  ) {
+    throw new MediaValidationError("Invalid poster storage key");
+  }
+
+  const info = await getR2ObjectInfo(storageKey);
+
+  if (
+    info.size <= 0 ||
+    info.size > 10 * 1024 * 1024 ||
+    info.contentType !== "image/webp"
+  ) {
+    throw new MediaValidationError(
+      "Poster must be a valid WebP image under 10 MB"
+    );
+  }
+
+  return {
+    poster: getR2PublicUrl(storageKey),
+    posterStorageKey: storageKey,
   };
 }
 
@@ -278,6 +310,38 @@ export async function POST(request: Request) {
                   type
                 );
 
+            const posterStorageKey =
+            editedFrame.posterStorageKey ??
+            existingFrame?.posterStorageKey;
+
+          let verifiedPoster:
+            | {
+                poster: string;
+                posterStorageKey: string;
+              }
+            | undefined;
+
+          if (type === "video" && posterStorageKey !== undefined) {
+            verifiedPoster =
+              posterStorageKey === existingFrame?.posterStorageKey
+                ? {
+                    poster: getR2PublicUrl(posterStorageKey),
+                    posterStorageKey,
+                  }
+                : await validateR2Poster(
+                    posterStorageKey,
+                    projectId
+                  );
+          } else if (
+            type !== "video" &&
+            (editedFrame.posterStorageKey ||
+              editedFrame.poster)
+          ) {
+            throw new Error(
+              "Poster images are only supported for video frames"
+            );
+          }
+
           return {
             id: editedFrame.id,
 
@@ -289,6 +353,13 @@ export async function POST(request: Request) {
             type,
             src: verified.src,
             storageKey: verified.storageKey,
+
+            ...(verifiedPoster
+              ? {
+                  poster: verifiedPoster.poster,
+                  posterStorageKey: verifiedPoster.posterStorageKey,
+                }
+              : {}),
 
             position:
               editedFrame.position ??

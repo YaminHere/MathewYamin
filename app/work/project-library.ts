@@ -5,6 +5,8 @@ export type CanvasFrame = {
     title: string;
     type: "image" | "video" | "gif" | "pdf";
     src: string;
+    poster?: string;
+    posterStorageKey?: string;
     position: {
         x: number;
         y: number;

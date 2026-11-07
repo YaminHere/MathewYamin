@@ -137,12 +137,14 @@ function ProjectFrame({
             | 'gif'
             | 'pdf'
         src: string
+        poster?: string
     }
 }) {
     if (frame.type === 'video') {
         return (
             <video
                 src={frame.src}
+                poster={frame.poster}
                 autoPlay
                 loop
                 muted

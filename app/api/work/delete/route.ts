@@ -176,17 +176,31 @@ export async function POST(request: Request) {
         );
       }
 
-      // Delete the R2 object before removing its metadata.
-      if (frame.storageKey) {
-        if (
-          !isValidStorageKey(frame.storageKey, projectId)
-        ) {
-          return NextResponse.json(
-            { error: "Invalid stored frame key" },
-            { status: 400 }
-          );
-        }
+      // Validate the stored media key before deleting it.
+      if (
+        frame.storageKey &&
+        !isValidStorageKey(frame.storageKey, projectId)
+      ) {
+        return NextResponse.json(
+          { error: "Invalid stored frame key" },
+          { status: 400 }
+        );
+      }
 
+      // Validate the optional poster key.
+      if (
+        frame.posterStorageKey &&
+        !isValidStorageKey(frame.posterStorageKey, projectId)
+      ) {
+        return NextResponse.json(
+          { error: "Invalid stored poster key" },
+          { status: 400 }
+        );
+      }
+      let posterDeletionFailed = false;
+
+      // Delete the main media first. Keep frame metadata if this fails.
+      if (frame.storageKey) {
         try {
           await deleteR2Object(frame.storageKey);
         } catch (error) {
@@ -199,6 +213,17 @@ export async function POST(request: Request) {
         }
       }
 
+      // Delete the optional poster.
+      if (frame.posterStorageKey) {
+        try {
+          await deleteR2Object(frame.posterStorageKey);
+        } catch (error) {
+          console.error("R2 POSTER DELETE FAILED:", error);
+          posterDeletionFailed = true;
+        }
+      }
+
+      // Remove the frame from project metadata.
       project.frames = existingFrames.filter(
         (item: any) => item.id !== frameId
       );
@@ -209,9 +234,14 @@ export async function POST(request: Request) {
         success: true,
         projectId,
         frameId,
+        ...(posterDeletionFailed
+          ? {
+              warning:
+                "Frame removed, but its poster file could not be deleted.",
+            }
+          : {}),
       });
     }
-
     /*
      * DELETE PROJECT
      *

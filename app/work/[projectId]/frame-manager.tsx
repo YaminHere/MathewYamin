@@ -12,6 +12,8 @@ type ProjectFrame = {
   type: "image" | "video" | "gif" | "pdf";
   src: string;
   storageKey?: string;
+  poster?: string;
+  posterStorageKey?: string;
   position: { x: number; y: number };
   width?: number;
   height?: number;
@@ -38,24 +40,204 @@ export function FrameManager({
   useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
+  const [converterToken, setConverterToken] = useState("");
+  const [converterConnected, setConverterConnected] = useState(false);
+
+  async function connectConverter() {
+  setConverterConnected(false);
+  setStatus("Connecting to local video converter...");
+
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:4317/api/status",
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${converterToken}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.authenticated) {
+      throw new Error(
+        result.error || "Could not authenticate with the converter."
+      );
+    }
+
+    setConverterConnected(true);
+    setStatus("Local video converter connected.");
+  } catch (error) {
+    setConverterConnected(false);
+    setStatus(
+      error instanceof Error
+        ? error.message
+        : "Could not connect to the local video converter."
+    );
+  }
+}
+
+
   const [savingOrder, setSavingOrder] = useState(false);
   const [fileDragActive, setFileDragActive] = useState(false);
   const fileDragDepthRef = useRef(0);
+
+  async function convertMp4(file: File) {
+  const converterUrl = "http://127.0.0.1:4317";
+
+  if (!converterToken.trim()) {
+    throw new Error("Enter your local converter token first.");
+  }
+
+  const formData = new FormData();
+  formData.append("video", file);
+
+  const conversionResponse = await fetch(
+    `${converterUrl}/api/convert`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${converterToken}`,
+      },
+      body: formData,
+    }
+  );
+
+  const conversionResult = await conversionResponse.json();
+
+  if (
+    !conversionResponse.ok ||
+    !conversionResult.ok ||
+    typeof conversionResult.video?.url !== "string" ||
+    typeof conversionResult.video?.fileName !== "string" ||
+    typeof conversionResult.thumbnail?.url !== "string" ||
+    typeof conversionResult.thumbnail?.fileName !== "string"
+  ) {
+    throw new Error(
+      conversionResult.error || "MP4 conversion failed."
+    );
+  }
+
+  const fileUrlPrefix = `${converterUrl}/api/files/`;
+
+  if (
+    !conversionResult.video.url.startsWith(fileUrlPrefix) ||
+    !conversionResult.thumbnail.url.startsWith(fileUrlPrefix)
+  ) {
+    throw new Error("The converter returned an invalid file URL.");
+  }
+
+  const downloadHeaders = {
+    Authorization: `Bearer ${converterToken}`,
+  };
+
+  const [videoResponse, thumbnailResponse] = await Promise.all([
+    fetch(conversionResult.video.url, {
+      headers: downloadHeaders,
+    }),
+    fetch(conversionResult.thumbnail.url, {
+      headers: downloadHeaders,
+    }),
+  ]);
+
+  if (!videoResponse.ok || !thumbnailResponse.ok) {
+    throw new Error("Could not download the converted files.");
+  }
+
+  const [videoBlob, thumbnailBlob] = await Promise.all([
+    videoResponse.blob(),
+    thumbnailResponse.blob(),
+  ]);
+
+  if (
+    videoBlob.type !== "video/webm" ||
+    thumbnailBlob.type !== "image/webp"
+  ) {
+    throw new Error("The converter returned unexpected file formats.");
+  }
+
+  return {
+    video: new File(
+      [videoBlob],
+      conversionResult.video.fileName,
+      { type: "video/webm" }
+    ),
+    thumbnail: new File(
+      [thumbnailBlob],
+      conversionResult.thumbnail.fileName,
+      { type: "image/webp" }
+    ),
+  };
+}
+
+
+async function uploadToR2(file: File) {
+  const uploadResponse = await fetch("/api/work/upload-url", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      projectId,
+      fileName: file.name,
+      contentType: file.type,
+    }),
+  });
+
+  const uploadResult = await uploadResponse.json();
+
+  if (
+    !uploadResponse.ok ||
+    typeof uploadResult.uploadUrl !== "string" ||
+    typeof uploadResult.publicUrl !== "string" ||
+    typeof uploadResult.storageKey !== "string"
+  ) {
+    throw new Error(
+      uploadResult.error || `Could not prepare upload: ${file.name}`
+    );
+  }
+
+  const directUploadResponse = await fetch(uploadResult.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+    },
+    body: file,
+  });
+
+  if (!directUploadResponse.ok) {
+    throw new Error(`R2 upload failed: ${file.name}`);
+  }
+
+  return {
+    publicUrl: uploadResult.publicUrl as string,
+    storageKey: uploadResult.storageKey as string,
+  };
+}
+
 
   async function uploadFiles(files: File[]) {
   if (!files.length) return;
 
     setUploading(true);
-    setStatus("");
+setStatus("");
 
-    try {
-      const addedFrames: ProjectFrame[] = [];
+const addedFrames: ProjectFrame[] = [];
+const uploadedStorageKeys: string[] = [];
+let saveRequestStarted = false;
+
+try {
 
       for (const file of files) {
+        const isMp4 =
+          file.type === "video/mp4" ||
+          (!file.type && /\.mp4$/i.test(file.name));
+
         const isGif = file.type === "image/gif";
-const isImage = file.type.startsWith("image/") && !isGif;
-const isVideo = file.type.startsWith("video/");
-const isPdf = file.type === "application/pdf";
+        const isImage = file.type.startsWith("image/") && !isGif;
+        const isVideo = file.type.startsWith("video/") || isMp4;
+        const isPdf = file.type === "application/pdf";
 
 const maxSize = isGif
   ? 20 * 1024 * 1024
@@ -82,6 +264,41 @@ if (file.size > maxSize) {
 }
 
 
+if (isMp4) {
+  if (!converterConnected || !converterToken.trim()) {
+    throw new Error(
+      "Connect the local video converter before uploading MP4 files."
+    );
+  }
+
+  setStatus(`Converting ${file.name} locally...`);
+
+  const converted = await convertMp4(file);
+
+  setStatus(`Uploading converted video: ${file.name}...`);
+
+  const videoUpload = await uploadToR2(converted.video);
+  uploadedStorageKeys.push(videoUpload.storageKey);
+
+setStatus(`Uploading thumbnail: ${file.name}...`);
+
+const thumbnailUpload = await uploadToR2(converted.thumbnail);
+uploadedStorageKeys.push(thumbnailUpload.storageKey);
+
+  addedFrames.push({
+    id: crypto.randomUUID(),
+    title: file.name.replace(/\.[^/.]+$/, ""),
+    type: "video",
+    src: videoUpload.publicUrl,
+    storageKey: videoUpload.storageKey,
+    poster: thumbnailUpload.publicUrl,
+    posterStorageKey: thumbnailUpload.storageKey,
+    position: { x: 0, y: 0 },
+  });
+
+  continue;
+}
+
 const uploadFile = isImage
   ? await optimizeImage(file)
   : file;
@@ -93,67 +310,29 @@ console.log("Frame Manager optimization:", {
   uploadedType: uploadFile.type,
 });
 
-                // Request a temporary R2 upload URL.
-        const uploadResponse = await fetch("/api/work/upload-url", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            projectId,
-            fileName: uploadFile.name,
-            contentType: uploadFile.type,
-          }),
-        });
+const uploadResult = await uploadToR2(uploadFile);
+uploadedStorageKeys.push(uploadResult.storageKey);
 
-        const uploadResult = await uploadResponse.json();
+const type: ProjectFrame["type"] = isPdf
+  ? "pdf"
+  : isVideo
+    ? "video"
+    : isGif
+      ? "gif"
+      : "image";
 
-        if (
-          !uploadResponse.ok ||
-          typeof uploadResult.uploadUrl !== "string" ||
-          typeof uploadResult.publicUrl !== "string" ||
-          typeof uploadResult.storageKey !== "string"
-        ) {
-          throw new Error(
-            uploadResult.error || `Could not prepare upload: ${file.name}`
-          );
-        }
-
-        // Upload directly to R2.
-        const directUploadResponse = await fetch(
-          uploadResult.uploadUrl,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": uploadFile.type,
-            },
-            body: uploadFile,
-          }
-        );
-
-        if (!directUploadResponse.ok) {
-          throw new Error(`R2 upload failed: ${file.name}`);
-        }
-
-        const type: ProjectFrame["type"] = isPdf
-          ? "pdf"
-          : isVideo
-            ? "video"
-            : file.type === "image/gif"
-              ? "gif"
-              : "image";
-
-                addedFrames.push({
-          id: crypto.randomUUID(),
-          title: file.name.replace(/\.[^/.]+$/, ""),
-          type,
-          src: uploadResult.publicUrl,
-          storageKey: uploadResult.storageKey,
-          position: { x: 0, y: 0 },
-        });
-      }
+addedFrames.push({
+  id: crypto.randomUUID(),
+  title: file.name.replace(/\.[^/.]+$/, ""),
+  type,
+  src: uploadResult.publicUrl,
+  storageKey: uploadResult.storageKey,
+  position: { x: 0, y: 0 },
+});
+}
 
       const updatedFrames = [...frames, ...addedFrames];
+      saveRequestStarted = true;
 
       const saveResponse = await fetch("/api/work/save", {
         method: "POST",
@@ -180,12 +359,44 @@ console.log("Frame Manager optimization:", {
 
       router.refresh();
     } catch (error) {
-      setStatus(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong."
-      );
-    } finally {
+  if (!saveRequestStarted && uploadedStorageKeys.length > 0) {
+    setStatus("Upload failed. Cleaning up uploaded files...");
+
+    for (const storageKey of uploadedStorageKeys) {
+      try {
+        const cleanupResponse = await fetch("/api/work/delete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            projectId,
+            type: "thumbnail-asset",
+            storageKey,
+          }),
+        });
+
+        if (!cleanupResponse.ok) {
+          console.error(
+            "Could not clean up uploaded R2 object:",
+            storageKey
+          );
+        }
+      } catch (cleanupError) {
+        console.error(
+          "R2 cleanup request failed:",
+          cleanupError
+        );
+      }
+    }
+  }
+
+  setStatus(
+    error instanceof Error
+      ? error.message
+      : "Something went wrong."
+  );
+} finally {
       setUploading(false);
     }
   }
@@ -527,6 +738,7 @@ async function moveFrame(index: number, direction: -1 | 1) {
         {frame.type === "video" ? (
           <video
             src={frame.src}
+            poster={frame.poster}
             controls
             muted
             playsInline
@@ -547,6 +759,47 @@ async function moveFrame(index: number, direction: -1 | 1) {
       </div>
     </div>
   ))}
+</div>
+
+
+<div className="mb-5 flex flex-wrap items-end gap-3">
+  <div className="min-w-[240px] flex-1">
+    <label
+      htmlFor="converter-token"
+      className="mb-2 block text-xs uppercase tracking-wider text-black/60 dark:text-white/60"
+    >
+      Local video converter token
+    </label>
+
+    <input
+      id="converter-token"
+      type="password"
+      value={converterToken}
+      onChange={(event) => {
+        setConverterToken(event.target.value);
+        setConverterConnected(false);
+      }}
+      placeholder="Enter your local converter token"
+      autoComplete="off"
+      spellCheck={false}
+      className="w-full border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/50 dark:border-white/20 dark:focus:border-white/50"
+    />
+  </div>
+
+  <button
+    type="button"
+    onClick={connectConverter}
+    disabled={!converterToken.trim() || uploading || savingOrder}
+    className="border border-black/15 px-4 py-2 text-xs uppercase tracking-wider transition-opacity hover:opacity-50 disabled:opacity-40 dark:border-white/20"
+  >
+    Connect converter
+  </button>
+
+  <p className="w-full text-xs text-black/50 dark:text-white/50">
+    {converterConnected
+      ? "Connected to local converter."
+      : "Required for MP4 uploads. Start the converter on this computer first."}
+  </p>
 </div>
 
 
