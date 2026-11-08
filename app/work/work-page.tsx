@@ -2511,6 +2511,10 @@ const applyTransform = (updateOverlays = true) => {
   if (!canvas) return;
 
   const { x, y, scale } = camera.current;
+    canvas.style.setProperty(
+  "--project-padding",
+  `${Math.min(24, Math.max(12, PROJECT_PADDING / scale))}px`
+);
 
   canvas.style.transform =
     `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
@@ -5160,8 +5164,8 @@ const renderedProjectHeight =
       style={{
         left: position.x,
         top: position.y,
-width: renderedProjectWidth,
-height: renderedProjectHeight,
+width: `calc(${contentWidth * projectScale}px + var(--project-padding) + var(--project-padding))`,
+height: `calc(${contentHeight * projectScale}px + var(--project-padding) + var(--project-padding))`,
         zIndex:
           projectZIndexes[project.id] ?? 0,
           contentVisibility:
@@ -5293,6 +5297,7 @@ opacity:
   style={{
   width: "100%",
   height: "100%",
+  borderRadius: Math.min(18, FRAME_RADIUS + 12),
 
   transform:
     hoveredProjectId === project.id
@@ -5301,7 +5306,7 @@ opacity:
 
   transformOrigin: "center center",
 
-  transition: "none",
+  transition: "transform 600ms cubic-bezier(0.22, 1, 0.36, 1)",
 }}
 >
 
@@ -5316,8 +5321,8 @@ opacity:
   <div
   style={{
   position: "absolute",
-  left: PROJECT_PADDING,
-  top: PROJECT_PADDING,
+  left: "var(--project-padding)",
+top: "var(--project-padding)",
   width: contentWidth,
   height: contentHeight,
   overflow: "hidden",
