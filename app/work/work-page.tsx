@@ -12,6 +12,7 @@ import { useSearchParams } from "next/navigation";
 import { projectManifest } from "@/data/project-manifest";
 import { optimizeImage } from "@/lib/image-optimizer";
 import Link from "next/link";
+import MobileWorkPage from "./components/mobile-work-page";
 
 type ProjectFrame = {
   id: string;
@@ -5070,6 +5071,10 @@ const anchorY =
 </header>
 
 
+{/* MOBILE EDITORIAL PORTFOLIO */}
+<MobileWorkPage projects={projects} />
+
+
       {/* CANVAS VIEWPORT */}
 
       <div
@@ -5077,7 +5082,7 @@ const anchorY =
           viewportRef
         }
 
-        className={`h-full w-full select-none touch-none ${
+        className={`hidden h-full w-full select-none touch-none md:block ${
           dragging
             ? "cursor-grabbing"
             : "cursor-grab"
@@ -6127,43 +6132,9 @@ editingFrameTitle === frameKey
 )}
 
 
-{/* MOBILE CANVAS NAVIGATION */}
-
-<div className="pointer-events-auto fixed bottom-4 left-4 right-4 z-50 md:hidden">
-  <div className="flex items-center gap-1 overflow-x-auto rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-md dark:bg-zinc-900/90">
-
-    <button
-      onClick={resetView}
-      className={`shrink-0 rounded-full px-3 py-2 text-[9px] uppercase tracking-[0.1em] transition-colors ${
-        !activeClassification
-          ? "bg-black text-white dark:bg-white dark:text-black"
-          : "text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5"
-      }`}
-    >
-      All
-    </button>
-
-    {sections.map((section) => (
-      <button
-        key={section.id}
-        onClick={() => goToSection(section)}
-        className={`shrink-0 rounded-full px-3 py-2 text-[9px] uppercase tracking-[0.1em] transition-colors ${
-          activeClassification === section.id
-            ? "bg-black text-white dark:bg-white dark:text-black"
-            : "text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5"
-        }`}
-      >
-        {section.label}
-      </button>
-    ))}
-
-  </div>
-</div>
-
-
 {/* ZOOM CONTROLS */}
 
-      <div className="fixed bottom-[4.5rem] right-4 z-50 flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-md dark:bg-zinc-900/90 sm:bottom-6 sm:right-6">
+      <div className="hidden fixed bottom-[4.5rem] right-4 z-50 items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-md dark:bg-zinc-900/90 md:flex sm:bottom-6 sm:right-6">
 
         <button
   onClick={() => zoom(-0.1)}
