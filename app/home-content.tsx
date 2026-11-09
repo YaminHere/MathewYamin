@@ -80,7 +80,7 @@ export function HomeContent({
 }) {
     return (
         <motion.main
-            className="space-y-24"
+            className="space-y-20 md:space-y-24"
             variants={VARIANTS_CONTAINER}
             initial="hidden"
             animate="visible"
@@ -108,7 +108,7 @@ export function HomeContent({
     <CanvasPreview projects={allProjects} />
 </div>
 
-
+        {/*
             <motion.section
                 variants={VARIANTS_SECTION}
                 transition={TRANSITION_SECTION}
@@ -124,6 +124,7 @@ export function HomeContent({
                 </div>
                 <ProjectsList projects={projects} />
             </motion.section>
+            */}
 
             <motion.section
                 variants={VARIANTS_SECTION}

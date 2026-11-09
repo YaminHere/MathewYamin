@@ -147,7 +147,7 @@ export function CanvasPreview({
         >
             <div
             ref={previewRef}
-            className="relative h-[420px] overflow-hidden">
+            className="relative h-[240px] overflow-hidden md:h-[420px]">
                 <div
                     className="absolute"
                     style={{
@@ -173,10 +173,15 @@ export function CanvasPreview({
                                 return null
                             }
 
+                            const mobileOffset = -50
+                            const desktopOffset = -100
+
                             const baseX =
-                                (sourceX - minX) *
-                                    previewScale +
-                                padding
+                                (sourceX - minX) * previewScale +
+                                (previewWidth - sourceWidth * previewScale) / 2 +
+                                (typeof window !== 'undefined' && window.innerWidth < 768
+                                    ? mobileOffset
+                                    : desktopOffset)
 
                             const baseY =
                                 (sourceY - minY) *
@@ -191,7 +196,7 @@ export function CanvasPreview({
                                             project.id
                                         ] = element
                                     }}
-                                    className="absolute w-[220px] overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition-shadow duration-500 group-hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
+                                    className="absolute w-[120px] md:w-[220px] overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition-shadow duration-500 group-hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
                                     style={{
                                         left: baseX,
                                         top: baseY,
