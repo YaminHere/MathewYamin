@@ -7,6 +7,7 @@ import { EditableDescription } from './editable-description'
 import { FavoriteButton } from './favorite-button'
 import { FrameManager } from "./frame-manager";
 import { PdfViewer } from '@/components/ui/pdf-viewer'
+import ResponsiveWebsiteFrame from "@/components/ui/responsive-website-frame";
 
 type ProjectPageProps = {
     params: Promise<{
@@ -100,7 +101,7 @@ export default async function ProjectPage({
 
 
         {isAdmin && (
-    <div className="mx-auto max-w-6xl px-6">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 md:px-8">
         <FrameManager
             projectId={project.id}
             initialFrames={project.frames}
@@ -110,7 +111,7 @@ export default async function ProjectPage({
 )}
 
             {!isAdmin && (
-    <section className="mx-auto max-w-6xl px-6 pb-32">
+    <section className="mx-auto w-full max-w-screen-2xl px-4 pb-32 md:px-8">
         <div className="space-y-8">
             {project.frames.map((frame) => (
                 <ProjectFrame
@@ -131,11 +132,7 @@ function ProjectFrame({
     frame: {
         id: string
         title: string
-        type:
-            | 'image'
-            | 'video'
-            | 'gif'
-            | 'pdf'
+        type: "image" | "video" | "gif" | "pdf" | "website"
         src: string
         poster?: string
     }
@@ -162,6 +159,18 @@ function ProjectFrame({
             title={frame.title}
         />
     )
+}
+
+if (frame.type === "website") {
+  return (
+    <div className="overflow-hidden rounded-xl">
+      <ResponsiveWebsiteFrame
+        src={frame.src}
+        title={frame.title}
+        desktopScroll
+      />
+    </div>
+  );
 }
 
     return (

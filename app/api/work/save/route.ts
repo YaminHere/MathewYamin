@@ -286,12 +286,65 @@ export async function POST(request: Request) {
             existingFrame?.storageKey;
 
           if (
-            typeof editedFrame.id !== "string" ||
-            !editedFrame.id.trim() ||
-            !["image", "video", "gif", "pdf"].includes(type)
-          ) {
-            throw new Error("Invalid frame information");
-          }
+  typeof editedFrame.id !== "string" ||
+  !editedFrame.id.trim() ||
+  !["image", "video", "gif", "pdf", "website"].includes(type)
+) {
+  throw new Error("Invalid frame information");
+}
+
+// Website frames store their URL directly, not in R2.
+if (type === "website") {
+  let websiteUrl: URL;
+
+  try {
+    websiteUrl = new URL(editedFrame.src);
+  } catch {
+    throw new Error("Invalid website URL");
+  }
+
+  if (
+    websiteUrl.protocol !== "https:" ||
+    websiteUrl.username ||
+    websiteUrl.password
+  ) {
+    throw new Error("Website frames require a valid HTTPS URL");
+  }
+
+  return {
+    id: editedFrame.id,
+    title:
+      typeof editedFrame.title === "string"
+        ? editedFrame.title
+        : "Website",
+    type: "website",
+    src: websiteUrl.toString(),
+    position:
+      editedFrame.position ??
+      existingFrame?.position ??
+      { x: 0, y: 0 },
+
+    ...(typeof editedFrame.width === "number" &&
+    typeof editedFrame.height === "number"
+      ? {
+          width: editedFrame.width,
+          height: editedFrame.height,
+        }
+      : typeof existingFrame?.width === "number" &&
+        typeof existingFrame?.height === "number"
+      ? {
+          width: existingFrame.width,
+          height: existingFrame.height,
+        }
+      : {}),
+
+    ...(typeof (editedFrame.zIndex ?? existingFrame?.zIndex) === "number"
+      ? {
+          zIndex: editedFrame.zIndex ?? existingFrame.zIndex,
+        }
+      : {}),
+  };
+}
 
           if (typeof storageKey !== "string") {
             throw new Error("Frame is missing its R2 storage key");

@@ -3,7 +3,7 @@ import { listR2Projects } from "@/lib/r2";
 export type CanvasFrame = {
     id: string;
     title: string;
-    type: "image" | "video" | "gif" | "pdf";
+    type: "image" | "video" | "gif" | "pdf" | "website";
     src: string;
     poster?: string;
     posterStorageKey?: string;

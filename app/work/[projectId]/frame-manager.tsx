@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { optimizeImage } from "@/lib/image-optimizer";
 import dynamic from "next/dynamic";
+import ResponsiveWebsiteFrame from "@/components/ui/responsive-website-frame";
 
 const PdfViewer = dynamic(
   () => import("@/components/ui/pdf-viewer").then((mod) => mod.PdfViewer),
@@ -21,7 +22,7 @@ const PdfViewer = dynamic(
 type ProjectFrame = {
   id: string;
   title: string;
-  type: "image" | "video" | "gif" | "pdf";
+  type: "image" | "video" | "gif" | "pdf" | "website";
   src: string;
   storageKey?: string;
   poster?: string;
@@ -52,6 +53,9 @@ export function FrameManager({
   useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
+  const [showWebsiteForm, setShowWebsiteForm] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteTitle, setWebsiteTitle] = useState("");
   const [converterToken, setConverterToken] = useState("");
   const [converterConnected, setConverterConnected] = useState(false);
 
@@ -571,11 +575,60 @@ async function deleteFrame(frameId: string) {
 }
 
 
+async function addWebsiteFrame() {
+  const trimmedUrl = websiteUrl.trim();
+
+  if (!trimmedUrl) {
+    setStatus("Please enter a website URL.");
+    return;
+  }
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(
+      trimmedUrl.startsWith("https://")
+        ? trimmedUrl
+        : `https://${trimmedUrl}`
+    );
+  } catch {
+    setStatus("Please enter a valid website URL.");
+    return;
+  }
+
+  if (
+    parsedUrl.protocol !== "https:" ||
+    parsedUrl.username ||
+    parsedUrl.password
+  ) {
+    setStatus("Please enter a valid HTTPS website URL.");
+    return;
+  }
+
+  const newFrame: ProjectFrame = {
+    id: crypto.randomUUID(),
+    title: websiteTitle.trim() || parsedUrl.hostname,
+    type: "website",
+    src: parsedUrl.toString(),
+    position: { x: 0, y: 0 },
+    width: 900,
+    height: 600,
+  };
+
+  const saved = await saveFrameOrder([...frames, newFrame]);
+
+  if (!saved) return;
+
+  setWebsiteUrl("");
+  setWebsiteTitle("");
+  setShowWebsiteForm(false);
+}
 
 
-
-async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
-  if (savingOrder) return;
+async function saveFrameOrder(
+  updatedFrames: ProjectFrame[]
+): Promise<boolean> {
+  if (savingOrder) return false;
 
   const previousFrames = frames;
 
@@ -604,6 +657,7 @@ async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
     }
 
     setStatus("Frame order saved.");
+    return true;
   } catch (error) {
     // Restore the previous order if saving fails.
     setFrames(previousFrames);
@@ -613,6 +667,7 @@ async function saveFrameOrder(updatedFrames: ProjectFrame[]) {
         ? error.message
         : "Failed to save frame order."
     );
+    return false;
   } finally {
     setSavingOrder(false);
   }
@@ -759,33 +814,91 @@ async function moveFrame(index: number, direction: -1 | 1) {
       </div>
 
       {/* FRAME PREVIEW */}
-      <div className="bg-black/[0.02] p-3 dark:bg-white/[0.02]">
-        {frame.type === "video" ? (
-          <video
-            src={frame.src}
-            poster={frame.poster}
-            controls
-            muted
-            playsInline
-            className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
-          />
-        ) : frame.type === "pdf" ? (
-  <PdfViewer
-    src={frame.src}
-    title={frame.title}
-  />
-) : (
-          <img
-            src={frame.src}
-            alt={frame.title}
-            className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
-          />
-        )}
-      </div>
+<div className="bg-black/[0.02] p-3 dark:bg-white/[0.02]">
+  {frame.type === "video" ? (
+    <video
+      src={frame.src}
+      poster={frame.poster}
+      controls
+      muted
+      playsInline
+      className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
+    />
+  ) : frame.type === "pdf" ? (
+    <PdfViewer
+      src={frame.src}
+      title={frame.title}
+    />
+  ) : frame.type === "website" ? (
+    <ResponsiveWebsiteFrame
+  src={frame.src}
+  title={frame.title}
+  forceDesktop
+/>
+  ) : (
+    <img
+      src={frame.src}
+      alt={frame.title}
+      className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
+    />
+  )}
+</div>
     </div>
   ))}
 </div>
 
+
+        <button
+  type="button"
+  disabled={uploading || savingOrder}
+  onClick={() => setShowWebsiteForm((current) => !current)}
+  className="border border-black/15 px-4 py-2 text-xs uppercase tracking-wider transition-opacity hover:opacity-50 disabled:opacity-40 dark:border-white/20"
+>
+  + Add website
+</button>
+
+{showWebsiteForm && (
+  <div className="mt-4 flex flex-col gap-3 border border-black/10 p-4 dark:border-white/15">
+    <input
+      type="url"
+      value={websiteUrl}
+      onChange={(event) => setWebsiteUrl(event.target.value)}
+      placeholder="https://example.com"
+      className="w-full border border-black/15 bg-transparent px-3 py-2 text-sm outline-none dark:border-white/20"
+    />
+
+    <input
+      type="text"
+      value={websiteTitle}
+      onChange={(event) => setWebsiteTitle(event.target.value)}
+      placeholder="Frame title (optional)"
+      className="w-full border border-black/15 bg-transparent px-3 py-2 text-sm outline-none dark:border-white/20"
+    />
+
+    <div className="flex gap-2">
+      <button
+        type="button"
+        disabled={savingOrder || !websiteUrl.trim()}
+        onClick={addWebsiteFrame}
+        className="bg-black px-4 py-2 text-xs uppercase tracking-wider text-white disabled:opacity-40 dark:bg-white dark:text-black"
+      >
+        {savingOrder ? "Saving..." : "Add website frame"}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          setShowWebsiteForm(false);
+          setWebsiteUrl("");
+          setWebsiteTitle("");
+        }}
+        className="border border-black/15 px-4 py-2 text-xs uppercase tracking-wider dark:border-white/20"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
 
         <button
           type="button"
