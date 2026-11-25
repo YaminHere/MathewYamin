@@ -79,7 +79,9 @@ export default async function ProjectPage({
                 </div>
 
                 <h1 className="max-w-4xl text-5xl font-medium tracking-tight md:text-7xl">
-                    {project.title}
+                    {project.title.replace(/\b\w+/g, (word) =>
+    word.charAt(0).toUpperCase() + word.slice(1)
+)}
                 </h1>
 
                 <EditableDescription
