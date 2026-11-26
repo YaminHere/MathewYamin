@@ -8,7 +8,7 @@ import {
   type WheelEvent,
 } from "react";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { projectManifest } from "@/data/project-manifest";
 import { optimizeImage } from "@/lib/image-optimizer";
 import Link from "next/link";
@@ -559,6 +559,7 @@ export default function WorkPage({
 }) {
   const searchParams =
     useSearchParams();
+    const router = useRouter();
 
   const viewportRef =
     useRef<HTMLDivElement>(null);
@@ -573,6 +574,17 @@ export default function WorkPage({
 
   const [canvasReady, setCanvasReady] = useState(false);
   const canvasReadyRef = useRef(false);
+  const [showMobileRecommendation, setShowMobileRecommendation] = useState(false);
+
+useEffect(() => {
+  const cameFromHome = searchParams.get("from") === "home";
+  const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+  if (cameFromHome && isMobile) {
+    setShowMobileRecommendation(true);
+    router.replace("/work", { scroll: false });
+  }
+}, [searchParams, router]);
 
   const screenLabelLayerRef =
     useRef<HTMLDivElement | null>(null);
@@ -4981,6 +4993,41 @@ const anchorY =
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-[#f7f7f5] text-[#111] dark:bg-zinc-950 dark:text-white">
+
+      {showMobileRecommendation && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-5 py-8 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mobile-recommendation-title"
+      className="w-full max-w-sm rounded-2xl border border-black/10 bg-[#f7f7f5] p-6 text-[#111] shadow-2xl dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+    >
+      <p className="mb-3 text-[10px] uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
+        Portfolio experience
+      </p>
+
+      <h2
+        id="mobile-recommendation-title"
+        className="text-2xl font-medium tracking-tight"
+      >
+        A better experience on a bigger screen.
+      </h2>
+
+      <p className="mt-3 text-sm leading-6 text-black/60 dark:text-white/60">
+        This portfolio is designed as an interactive canvas. Explore it on a
+        computer for the full experience.
+      </p>
+
+      <button
+        type="button"
+        onClick={() => setShowMobileRecommendation(false)}
+        className="mt-6 w-full rounded-full bg-black px-5 py-3 text-xs font-medium uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-80 dark:bg-white dark:text-black"
+      >
+        Continue on mobile
+      </button>
+    </div>
+  </div>
+)}
 
       {/* HEADER */}
 

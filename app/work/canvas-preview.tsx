@@ -142,7 +142,7 @@ export function CanvasPreview({
 
     return (
         <Link
-            href="/work"
+            href="/work?from=home"
             className="group block overflow-hidden rounded-2xl border border-zinc-200/70 bg-zinc-50 dark:border-zinc-800/70 dark:bg-zinc-950"
         >
             <div
@@ -173,15 +173,9 @@ export function CanvasPreview({
                                 return null
                             }
 
-                            const mobileOffset = -50
-                            const desktopOffset = -100
-
                             const baseX =
-                                (sourceX - minX) * previewScale +
-                                (previewWidth - sourceWidth * previewScale) / 2 +
-                                (typeof window !== 'undefined' && window.innerWidth < 768
-                                    ? mobileOffset
-                                    : desktopOffset)
+    (sourceX - minX) * previewScale +
+    (previewWidth - sourceWidth * previewScale) / 2
 
                             const baseY =
                                 (sourceY - minY) *
@@ -196,7 +190,7 @@ export function CanvasPreview({
                                             project.id
                                         ] = element
                                     }}
-                                    className="absolute w-[120px] md:w-[220px] overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition-shadow duration-500 group-hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
+                                    className="absolute w-[120px] md:w-[220px] overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition-shadow duration-500 group-hover:shadow-md dark:border-white/10 dark:bg-zinc-900 -translate-x-[50px] md:-translate-x-[100px]"
                                     style={{
                                         left: baseX,
                                         top: baseY,

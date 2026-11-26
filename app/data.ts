@@ -95,7 +95,7 @@ export const SOCIAL_LINKS: SocialLink[] = [
   },
   {
     label: 'Instagram',
-    link: 'https://www.instagram.com/yaminmathew',
+    link: 'https://www.instagram.com/yamin_mathew',
   },
   {
     label: 'Bento',

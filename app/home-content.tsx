@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { Spotlight } from '@/components/ui/spotlight'
 import { Magnetic } from '@/components/ui/magnetic'
 import Link from 'next/link'
+import Image from 'next/image'
 import { CanvasPreview } from './work/canvas-preview'
 import { AnimatedBackground } from '@/components/ui/animated-background'
 import {
@@ -15,6 +16,7 @@ import {
 } from './data'
 import { ProjectsList } from './projects/(list)/projects-list'
 import { CanvasProject } from './work/project-library'
+
 
 const VARIANTS_CONTAINER = {
     hidden: { opacity: 0 },

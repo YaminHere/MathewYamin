@@ -6,7 +6,7 @@ const nextConfig = {
   reactStrictMode: true,
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
   turbopack: {},
-  allowedDevOrigins: ['192.168.1.5', '192.168.1.9', '192.168.1.8', 'localhost'],
+  allowedDevOrigins: ['192.168.1.5', '192.168.1.6', '192.168.1.9', '192.168.1.8', 'localhost'],
 };
 
 const withMDX = createMDX({
@@ -15,4 +15,5 @@ const withMDX = createMDX({
 
 
 export default withMDX(nextConfig);
+
 
