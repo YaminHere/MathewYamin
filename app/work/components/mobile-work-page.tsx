@@ -9,6 +9,9 @@ type MobileProject = {
   title: string;
   year: number;
   classifications: string[];
+    homepage?: {
+    featured?: boolean;
+  };
   thumbnail?: {
     type: "image" | "video" | "gif";
     src: string;
@@ -145,6 +148,14 @@ export default function MobileWorkPage({
                     className="group flex min-h-0 flex-1 flex-col"
                   >
                     <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-[#ecebe7] dark:bg-zinc-900">
+                      {project.homepage?.featured && (
+  <span
+    aria-label="Selected project"
+    className="absolute right-2 top-2 z-30 flex h-7 w-7 items-center justify-center rounded-2xl border border-[#D6B46A]/40 bg-black/65 text-[#E5C477] shadow-lg backdrop-blur-sm"
+  >
+    <span className="text-lg leading-none">✦</span>
+  </span>
+)}
                       {media?.src ? (
                         isVideo ? (
                           <video

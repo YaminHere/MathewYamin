@@ -53,6 +53,9 @@ type Project = {
   title: string;
   year: number;
   classifications: string[];
+    homepage?: {
+    featured?: boolean;
+  };
   position: {
     x: number;
     y: number;
@@ -61,6 +64,7 @@ type Project = {
   thumbnail?: ProjectThumbnail;
   frames: ProjectFrame[];
 };
+
 
 const getProjectThumbnail = (
   project: Project
@@ -5668,7 +5672,16 @@ top: "var(--project-padding)",
     <div className="group flex min-w-0 items-center gap-1 sm:gap-2">
 
   {/* TITLE + CLASSIFICATIONS — FLEXIBLE */}
-<div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+<div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+
+    {project.homepage?.featured && (
+  <span
+    aria-label="Selected project"
+    className="shrink-0 text-[#C49A45] text-[clamp(13px,1.1vw,18px)] leading-none"
+  >
+    ✦
+  </span>
+)}
 
   {/* PROJECT TITLE — FLEXIBLE, SECOND PRIORITY */}
   <div
@@ -5714,7 +5727,6 @@ top: "var(--project-padding)",
   </div>
 
 </div>
-
 
   {/* YEAR — FIXED, RIGHT ALIGNED */}
   <span className="ml-auto shrink-0 text-[8px] text-black/30 dark:text-white/30 sm:text-[9px]">
