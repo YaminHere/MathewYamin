@@ -144,7 +144,7 @@ export default function MobileWorkPage({
                     href={`/work/${encodeURIComponent(project.id)}`}
                     className="group flex min-h-0 flex-1 flex-col"
                   >
-                    <div className="relative min-h-0 flex-1 overflow-hidden bg-[#ecebe7] dark:bg-zinc-900">
+                    <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-[#ecebe7] dark:bg-zinc-900">
                       {media?.src ? (
                         isVideo ? (
                           <video
@@ -154,7 +154,7 @@ export default function MobileWorkPage({
                             autoPlay
                             playsInline
                             preload="metadata"
-                            className="h-full w-full object-contain"
+                            className="h-full w-full object-cover"
                           />
                         ) : (
                           <img
@@ -162,7 +162,7 @@ export default function MobileWorkPage({
                             alt={`${project.title} project`}
                             loading="lazy"
                             decoding="async"
-                            className="h-full w-full object-contain transition-transform duration-500 group-active:scale-[1.02]"
+                            className="h-full w-full object-cover transition-transform duration-500 group-active:scale-[1.02]"
                           />
                         )
                       ) : (
